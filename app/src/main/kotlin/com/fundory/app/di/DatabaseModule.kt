@@ -28,7 +28,9 @@ object DatabaseModule {
             context,
             FundoryDatabase::class.java,
             FundoryDatabase.DATABASE_NAME
-        ).fallbackToDestructiveMigration(false)
+        )
+            .addMigrations(FundoryDatabase.MIGRATION_1_2)
+            .fallbackToDestructiveMigration(false)
             .build()
     }
 
@@ -47,4 +49,3 @@ object DatabaseModule {
     @Provides
     fun provideGoalSnapshotDao(db: FundoryDatabase): GoalSnapshotDao = db.goalSnapshotDao()
 }
-

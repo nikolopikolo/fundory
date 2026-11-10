@@ -1,7 +1,9 @@
 package com.fundory.app.ui.goals
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,35 +11,41 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -50,6 +58,7 @@ import com.fundory.app.ui.theme.FundoryGreen
 import com.fundory.app.ui.theme.FundoryGreenLight
 import com.fundory.app.ui.theme.WarningAmber
 import java.math.BigDecimal
+import java.math.RoundingMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,33 +70,68 @@ fun ShippingCalculatorScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val rates = state.ratesToGel
 
-    var productsSubtotalText by remember { mutableStateOf("350.00") }
-    var weightKgText by remember { mutableStateOf("1.5") }
-    var ratePerKgText by remember { mutableStateOf("8.00") }
+    // Purchase Source: true = Local Purchase (Georgia), false = International Online Purchase
+    var isLocalPurchase by remember { mutableStateOf(false) }
+
+    // Product Cost inputs
+    var productPriceText by remember { mutableStateOf("") }
+    var productCurrency by remember { mutableStateOf("USD") }
+    var isCurrencyMenuOpen by remember { mutableStateOf(false) }
+
+    // Shipping inputs (all start empty or zero, no fabricated 1.5kg or 31 GEL!)
+    var manualShippingCostText by remember { mutableStateOf("") }
     var shippingCurrency by remember { mutableStateOf("USD") }
-    var fixedShippingFeeText by remember { mutableStateOf("0.00") }
-    var txFeePercentText by remember { mutableStateOf("2.0") }
+    var weightKgText by remember { mutableStateOf("") }
+    var ratePerKgText by remember { mutableStateOf("") }
+
+    // Import VAT & Customs Toggle
+    var applyImportVatAndCustoms by remember { mutableStateOf(true) }
+
+    // Optional Fees (both OFF by default!)
+    var applyCardFee by remember { mutableStateOf(false) }
+    var cardFeePercentText by remember { mutableStateOf("2.0") }
+
+    var applyFxFee by remember { mutableStateOf(false) }
     var fxFeePercentText by remember { mutableStateOf("1.5") }
-    var isGeorgianTaxMode by remember { mutableStateOf(true) }
-    var isCustomsExempt by remember { mutableStateOf(false) }
 
-    val productsSubtotalGel = Currencies.parseAmount(productsSubtotalText) ?: BigDecimal.ZERO
-    val weightKg = weightKgText.toDoubleOrNull() ?: 1.0
-    val ratePerKg = Currencies.parseAmount(ratePerKgText) ?: BigDecimal("8.00")
-    val fixedFee = Currencies.parseAmount(fixedShippingFeeText) ?: BigDecimal.ZERO
-    val txPercent = txFeePercentText.toDoubleOrNull() ?: 2.0
-    val fxPercent = fxFeePercentText.toDoubleOrNull() ?: 1.5
+    // Live currency calculations
+    val parsedProductPrice = Currencies.parseAmount(productPriceText) ?: BigDecimal.ZERO
+    val productRate = rates[productCurrency.uppercase()] ?: BigDecimal.ONE
+    val productsSubtotalGel = remember(parsedProductPrice, productCurrency, productRate, isLocalPurchase) {
+        if (isLocalPurchase) parsedProductPrice else parsedProductPrice.multiply(productRate).setScale(2, RoundingMode.HALF_UP)
+    }
 
-    val config = remember(weightKg, ratePerKg, shippingCurrency, fixedFee, txPercent, fxPercent, isGeorgianTaxMode, isCustomsExempt) {
+    val parsedManualShipping = Currencies.parseAmount(manualShippingCostText) ?: BigDecimal.ZERO
+    val parsedWeightKg = weightKgText.toDoubleOrNull() ?: 0.0
+    val parsedRatePerKg = Currencies.parseAmount(ratePerKgText) ?: BigDecimal.ZERO
+    val parsedCardFeePercent = if (applyCardFee) (cardFeePercentText.toDoubleOrNull() ?: 0.0) else 0.0
+    val parsedFxFeePercent = if (applyFxFee) (fxFeePercentText.toDoubleOrNull() ?: 0.0) else 0.0
+
+    val config = remember(
+        isLocalPurchase,
+        parsedWeightKg,
+        parsedRatePerKg,
+        parsedManualShipping,
+        shippingCurrency,
+        applyImportVatAndCustoms,
+        applyCardFee,
+        parsedCardFeePercent,
+        applyFxFee,
+        parsedFxFeePercent
+    ) {
         ImportCalculationConfig(
-            weightKg = weightKg,
-            ratePerKg = ratePerKg,
+            isLocalPurchase = isLocalPurchase,
+            weightKg = parsedWeightKg,
+            ratePerKg = parsedRatePerKg,
+            fixedShippingFee = parsedManualShipping,
             shippingCurrency = shippingCurrency,
-            fixedShippingFee = fixedFee,
-            transactionFeePercent = txPercent,
-            currencyConversionFeePercent = fxPercent,
-            isGeorgianImportTaxMode = isGeorgianTaxMode,
-            isCustomsExempt = isCustomsExempt
+            applyCardTransactionFee = applyCardFee,
+            transactionFeePercent = parsedCardFeePercent,
+            applyCurrencyConversionFee = applyFxFee,
+            currencyConversionFeePercent = parsedFxFeePercent,
+            applyImportVatAndCustoms = applyImportVatAndCustoms,
+            isGeorgianImportTaxMode = true,
+            isCustomsExempt = !applyImportVatAndCustoms
         )
     }
 
@@ -95,14 +139,14 @@ fun ShippingCalculatorScreen(
         viewModel.calculateImportCost(productsSubtotalGel, config, rates)
     }
 
+    val declaredValueGel = productsSubtotalGel.add(result.shippingTotalGel)
+    val exceedsThreshold = declaredValueGel > config.customsThresholdGel
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Import & Customs Calculator",
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Purchase & Import Calculator", fontWeight = FontWeight.Bold)
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -123,124 +167,381 @@ fun ShippingCalculatorScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Grand Total Result Card
+            // Purchase Source Segmented Control
+            Text(
+                text = "Purchase Source",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                FilterChip(
+                    selected = !isLocalPurchase,
+                    onClick = { isLocalPurchase = false },
+                    label = { Text("International Online") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = FundoryGreen.copy(alpha = 0.2f),
+                        selectedLabelColor = FundoryGreenLight
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+
+                FilterChip(
+                    selected = isLocalPurchase,
+                    onClick = { isLocalPurchase = true },
+                    label = { Text("Local Purchase (Georgia)") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = FundoryGreen.copy(alpha = 0.2f),
+                        selectedLabelColor = FundoryGreenLight
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Product Price Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
             ) {
-                Column(modifier = Modifier.padding(18.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Text(
-                        text = "ESTIMATED GRAND TOTAL",
-                        style = MaterialTheme.typography.labelSmall,
-                        letterSpacing = 1.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = Currencies.format(result.grandTotalGel),
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = FundoryGreen
+                        text = if (isLocalPurchase) "Product Price (in GEL)" else "Product Price & Currency",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = productPriceText,
+                            onValueChange = { productPriceText = it },
+                            label = { Text("Price") },
+                            placeholder = { Text("0.00") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
 
-                    // Breakdown lines
-                    BreakdownLine("Products Subtotal", Currencies.format(result.productsSubtotalGel))
-                    BreakdownLine("International Shipping", Currencies.format(result.shippingTotalGel))
-                    BreakdownLine("Card & Transaction Fees (${config.transactionFeePercent}%)", Currencies.format(result.transactionFeesGel))
-                    BreakdownLine("Currency Conversion Fees (${config.currencyConversionFeePercent}%)", Currencies.format(result.currencyConversionFeesGel))
+                        if (!isLocalPurchase) {
+                            Box(
+                                modifier = Modifier
+                                    .height(56.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
+                                    .clickable { isCurrencyMenuOpen = true }
+                                    .padding(horizontal = 14.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = productCurrency,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = FundoryGreen
+                                    )
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = FundoryGreen)
+                                }
 
-                    if (result.isTaxableUnderCustoms) {
-                        BreakdownLine("18% Import VAT", Currencies.format(result.estimatedVatGel), isHighlight = true)
-                        BreakdownLine("Customs Declaration Fee", Currencies.format(result.customsDeclarationFeeGel), isHighlight = true)
-                    } else {
-                        BreakdownLine("Customs Import Tax", "0.00 GEL (Under 300 GEL threshold)")
+                                DropdownMenu(
+                                    expanded = isCurrencyMenuOpen,
+                                    onDismissRequest = { isCurrencyMenuOpen = false }
+                                ) {
+                                    Currencies.supportedCodes.forEach { code ->
+                                        DropdownMenuItem(
+                                            text = { Text(code) },
+                                            onClick = {
+                                                productCurrency = code
+                                                isCurrencyMenuOpen = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = result.breakdownExplanation,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // Products Subtotal Input
-            OutlinedTextField(
-                value = productsSubtotalText,
-                onValueChange = { productsSubtotalText = it },
-                label = { Text("Items Subtotal (GEL)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            // Weight & Shipping Rate
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedTextField(
-                    value = weightKgText,
-                    onValueChange = { weightKgText = it },
-                    label = { Text("Weight (kg)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                OutlinedTextField(
-                    value = ratePerKgText,
-                    onValueChange = { ratePerKgText = it },
-                    label = { Text("Rate / kg ($shippingCurrency)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-
-            // Shipping Currency Chips
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("USD", "EUR", "CNY", "GEL").forEach { curr ->
-                    val isSelected = curr == shippingCurrency
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { shippingCurrency = curr },
-                        label = { Text(curr) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = FundoryGreen.copy(alpha = 0.2f),
-                            selectedLabelColor = FundoryGreenLight
+                    if (!isLocalPurchase && !productCurrency.equals("GEL", ignoreCase = true) && parsedProductPrice > BigDecimal.ZERO) {
+                        Text(
+                            text = "Converted: ${Currencies.format(productsSubtotalGel)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FundoryGreen,
+                            fontWeight = FontWeight.SemiBold
                         )
-                    )
+                    }
                 }
             }
 
-            // Georgian Customs Tax Mode Toggle
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+            // Shipping Cost Inputs
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
             ) {
-                Checkbox(
-                    checked = isGeorgianTaxMode,
-                    onCheckedChange = { isGeorgianTaxMode = it },
-                    colors = CheckboxDefaults.colors(checkedColor = FundoryGreen)
-                )
-                Column {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Text(
-                        text = "Georgian Import Customs & VAT (18%)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
+                        text = if (isLocalPurchase) "Local Delivery Cost (Optional)" else "International Shipping",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
                     )
+
+                    OutlinedTextField(
+                        value = manualShippingCostText,
+                        onValueChange = { manualShippingCostText = it },
+                        label = { Text(if (isLocalPurchase) "Local Delivery (GEL)" else "Flat Shipping Cost (USD)") },
+                        placeholder = { Text("0.00") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    if (!isLocalPurchase) {
+                        Text(
+                            text = "Or calculate by parcel weight & courier rate:",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = weightKgText,
+                                onValueChange = { weightKgText = it },
+                                label = { Text("Weight (kg)") },
+                                placeholder = { Text("e.g. 0.5") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+
+                            OutlinedTextField(
+                                value = ratePerKgText,
+                                onValueChange = { ratePerKgText = it },
+                                label = { Text("Rate ($/kg)") },
+                                placeholder = { Text("e.g. 8.00") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Import VAT & Customs Toggle (Only for international purchases)
+            if (!isLocalPurchase) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Apply Import VAT & Customs Fees",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Applies 18% VAT & 20 ₾ declaration fee if declared base > 300 ₾",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = applyImportVatAndCustoms,
+                                onCheckedChange = { applyImportVatAndCustoms = it },
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = FundoryGreen)
+                            )
+                        }
+
+                        if (exceedsThreshold) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(16.dp))
+                                Text(
+                                    text = "Declared CIF (${Currencies.format(declaredValueGel)}) exceeds 300 ₾ threshold.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = WarningAmber
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Optional Fees (Both OFF by default!)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                     Text(
-                        text = "Orders exceeding 300 GEL (Items + Freight) are subject to 18% VAT and 20 GEL customs declaration.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "Optional Fees (Disabled by Default)",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
                     )
+
+                    // Card Transaction Fee Toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Card Transaction Fee", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                            Text("Bank payment processing fee", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = applyCardFee,
+                            onCheckedChange = { applyCardFee = it },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = FundoryGreen)
+                        )
+                    }
+
+                    if (applyCardFee) {
+                        OutlinedTextField(
+                            value = cardFeePercentText,
+                            onValueChange = { cardFeePercentText = it },
+                            label = { Text("Fee Percentage (%)") },
+                            placeholder = { Text("2.0") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    // Currency Conversion Fee Toggle (Only for international purchases)
+                    if (!isLocalPurchase) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Currency Conversion Fee", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                Text("Card issuer FX margin spread", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(
+                                checked = applyFxFee,
+                                onCheckedChange = { applyFxFee = it },
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = FundoryGreen)
+                            )
+                        }
+
+                        if (applyFxFee) {
+                            OutlinedTextField(
+                                value = fxFeePercentText,
+                                onValueChange = { fxFeePercentText = it },
+                                label = { Text("FX Margin Percentage (%)") },
+                                placeholder = { Text("1.5") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Calculation Breakdown Card (Every nonzero value has a clear identifiable source!)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Calculation Breakdown",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    BreakdownLine("Product Cost", Currencies.format(result.productsSubtotalGel))
+
+                    if (result.shippingTotalGel > BigDecimal.ZERO) {
+                        BreakdownLine("Shipping", Currencies.format(result.shippingTotalGel))
+                    }
+
+                    if (result.isTaxableUnderCustoms) {
+                        BreakdownLine("Import VAT (18%)", Currencies.format(result.estimatedVatGel))
+                        BreakdownLine("Customs Declaration Fee", Currencies.format(result.customsDeclarationFeeGel))
+                    } else if (!isLocalPurchase && !applyImportVatAndCustoms) {
+                        Text(
+                            text = "Import taxes excluded by user preference",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (result.transactionFeesGel > BigDecimal.ZERO) {
+                        BreakdownLine("Card Transaction Fee", Currencies.format(result.transactionFeesGel))
+                    }
+
+                    if (result.currencyConversionFeesGel > BigDecimal.ZERO) {
+                        BreakdownLine("Currency Conversion Fee", Currencies.format(result.currencyConversionFeesGel))
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Total Estimated Cost",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = Currencies.format(result.grandTotalGel),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = FundoryGreen
+                        )
+                    }
                 }
             }
 
@@ -250,24 +551,21 @@ fun ShippingCalculatorScreen(
 }
 
 @Composable
-private fun BreakdownLine(label: String, value: String, isHighlight: Boolean = false) {
+private fun BreakdownLine(label: String, value: String) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (isHighlight) WarningAmber else MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = if (isHighlight) FontWeight.Bold else FontWeight.Medium,
-            color = if (isHighlight) WarningAmber else MaterialTheme.colorScheme.onSurface
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
-

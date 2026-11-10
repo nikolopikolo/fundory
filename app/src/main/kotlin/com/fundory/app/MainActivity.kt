@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.fundory.app.data.preferences.UserPreferencesRepository
@@ -25,6 +26,7 @@ class MainActivity : ComponentActivity() {
     lateinit var userPreferencesRepository: UserPreferencesRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -36,24 +38,27 @@ class MainActivity : ComponentActivity() {
                 initialValue = null
             )
 
-            if (preferences != null) {
-                FundoryTheme(
-                    darkTheme = preferences!!.isDarkMode,
-                    dynamicColor = preferences!!.useDynamicColors
-                ) {
-                    Surface(modifier = Modifier.fillMaxSize()) {
-                        val navController = rememberNavController()
-                        val startDestination = if (preferences!!.hasCompletedOnboarding) {
-                            Screen.Home.route
-                        } else {
-                            Screen.Onboarding.route
-                        }
+            // Keep splash screen on until preferences are loaded to prevent blank/white frames
+            splashScreen.setKeepOnScreenCondition { preferences == null }
 
-                        FundoryNavHost(
-                            navController = navController,
-                            startDestination = startDestination
-                        )
+            val currentPrefs = preferences ?: return@setContent
+
+            FundoryTheme(
+                darkTheme = currentPrefs.isDarkMode,
+                dynamicColor = currentPrefs.useDynamicColors
+            ) {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    val navController = rememberNavController()
+                    val startDestination = if (currentPrefs.hasCompletedOnboarding) {
+                        Screen.Home.route
+                    } else {
+                        Screen.Onboarding.route
                     }
+
+                    FundoryNavHost(
+                        navController = navController,
+                        startDestination = startDestination
+                    )
                 }
             }
         }

@@ -64,9 +64,18 @@ class GoalRepository @Inject constructor(
     }
 
     suspend fun saveGoal(goal: Goal) {
-        val entity = GoalEntity.fromDomain(goal.copy(lastUpdatedEpochMillis = System.currentTimeMillis()))
+        val existing = goalDao.getGoalById(goal.id)
+        val finalGoal = if (existing != null) {
+            goal.copy(
+                savedAmountGel = existing.savedAmountGel,
+                lastUpdatedEpochMillis = System.currentTimeMillis()
+            )
+        } else {
+            goal.copy(lastUpdatedEpochMillis = System.currentTimeMillis())
+        }
+        val entity = GoalEntity.fromDomain(finalGoal)
         goalDao.insertGoal(entity)
-        recordSnapshot(goal)
+        recordSnapshot(finalGoal)
     }
 
     suspend fun updateGoalStatus(goalId: String, status: GoalStatus) {

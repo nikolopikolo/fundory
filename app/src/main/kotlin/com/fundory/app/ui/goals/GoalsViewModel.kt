@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
-import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 data class GoalsUiState(
@@ -51,6 +51,7 @@ class GoalsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _filterStatus = MutableStateFlow(GoalStatus.ACTIVE)
+    private val goalDetailFlowCache = ConcurrentHashMap<String, StateFlow<GoalDetailUiState>>()
 
     val uiState: StateFlow<GoalsUiState> = combine(
         goalRepository.allGoalsWithProductsFlow,
@@ -75,6 +76,7 @@ class GoalsViewModel @Inject constructor(
 
     fun deleteGoal(goalId: String) {
         viewModelScope.launch {
+            goalDetailFlowCache.remove(goalId)
             goalRepository.deleteGoal(goalId)
         }
     }
@@ -107,20 +109,21 @@ class GoalsViewModel @Inject constructor(
     }
 
     fun getGoalDetailFlow(goalId: String): StateFlow<GoalDetailUiState> {
-        val stateFlow = MutableStateFlow(GoalDetailUiState(isLoading = true))
-        viewModelScope.launch {
+        return goalDetailFlowCache.getOrPut(goalId) {
             combine(
                 goalRepository.getGoalByIdFlow(goalId),
                 currencyRepository.ratesToGelFlow
             ) { goal, rates ->
                 val proj = goal?.let {
-                    forecastEngine.calculateProjection(
-                        goalId = it.id,
-                        targetAmountGel = it.targetAmountGel,
-                        currentSavedGel = it.savedAmountGel,
-                        monthlyPlanGel = it.monthlyPlanGel,
-                        scenario = ProjectionScenario.EXPECTED
-                    )
+                    if (it.monthlyPlanGel > BigDecimal.ZERO) {
+                        forecastEngine.calculateProjection(
+                            goalId = it.id,
+                            targetAmountGel = it.targetAmountGel,
+                            currentSavedGel = it.savedAmountGel,
+                            monthlyPlanGel = it.monthlyPlanGel,
+                            scenario = ProjectionScenario.EXPECTED
+                        )
+                    } else null
                 }
                 GoalDetailUiState(
                     goal = goal,
@@ -128,9 +131,20 @@ class GoalsViewModel @Inject constructor(
                     projection = proj,
                     isLoading = false
                 )
-            }.collect { stateFlow.value = it }
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = GoalDetailUiState(isLoading = true)
+            )
         }
-        return stateFlow
+    }
+
+    fun getTransactionsForGoal(goalId: String): kotlinx.coroutines.flow.Flow<List<com.fundory.app.domain.model.Transaction>> {
+        return transactionRepository.getTransactionsByGoalFlow(goalId)
+    }
+
+    suspend fun getGoalById(id: String): Goal? {
+        return goalRepository.getGoalById(id)
     }
 
     suspend fun getProductById(id: String): Product? {
@@ -140,6 +154,31 @@ class GoalsViewModel @Inject constructor(
     fun saveGoal(goal: Goal) {
         viewModelScope.launch {
             goalRepository.saveGoal(goal)
+        }
+    }
+
+    fun createGoalWithInitialDeposit(goal: Goal, initialDepositGel: BigDecimal) {
+        viewModelScope.launch {
+            goalRepository.saveGoal(goal)
+            if (initialDepositGel > BigDecimal.ZERO) {
+                transactionRepository.recordDeposit(
+                    goalId = goal.id,
+                    amountGel = initialDepositGel,
+                    note = "Initial goal balance"
+                )
+            }
+        }
+    }
+
+    fun recordDeposit(goalId: String?, amount: BigDecimal, note: String?) {
+        viewModelScope.launch {
+            transactionRepository.recordDeposit(goalId, amount, note)
+        }
+    }
+
+    fun recordWithdrawal(goalId: String?, amount: BigDecimal, note: String?) {
+        viewModelScope.launch {
+            transactionRepository.recordWithdrawal(goalId, amount, note)
         }
     }
 

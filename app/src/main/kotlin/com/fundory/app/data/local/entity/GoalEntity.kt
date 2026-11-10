@@ -15,9 +15,11 @@ data class GoalEntity(
     val iconName: String,
     val colorHex: String,
     val targetAmountGel: BigDecimal,
-    val isTargetCalculatedFromProducts: Boolean,
+    val originalTargetAmount: BigDecimal = targetAmountGel,
+    val targetCurrency: String = "GEL",
+    val isTargetCalculatedFromProducts: Boolean = false,
     val savedAmountGel: BigDecimal,
-    val monthlyPlanGel: BigDecimal,
+    val monthlyPlanGel: BigDecimal = BigDecimal.ZERO,
     val targetDateEpochMillis: Long?,
     val status: GoalStatus,
     val createdDateEpochMillis: Long,
@@ -30,6 +32,8 @@ data class GoalEntity(
         iconName = iconName,
         colorHex = colorHex,
         targetAmountGel = targetAmountGel,
+        originalTargetAmount = originalTargetAmount,
+        targetCurrency = targetCurrency,
         isTargetCalculatedFromProducts = isTargetCalculatedFromProducts,
         savedAmountGel = savedAmountGel,
         monthlyPlanGel = monthlyPlanGel,
@@ -47,6 +51,8 @@ data class GoalEntity(
             iconName = goal.iconName,
             colorHex = goal.colorHex,
             targetAmountGel = goal.targetAmountGel,
+            originalTargetAmount = goal.originalTargetAmount,
+            targetCurrency = goal.targetCurrency,
             isTargetCalculatedFromProducts = goal.isTargetCalculatedFromProducts,
             savedAmountGel = goal.savedAmountGel,
             monthlyPlanGel = goal.monthlyPlanGel,
@@ -57,4 +63,3 @@ data class GoalEntity(
         )
     }
 }
-

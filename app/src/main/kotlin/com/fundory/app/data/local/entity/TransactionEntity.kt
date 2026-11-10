@@ -23,7 +23,7 @@ import java.math.BigDecimal
 data class TransactionEntity(
     @PrimaryKey
     val id: String,
-    val goalId: String,
+    val goalId: String? = null,
     val type: TransactionType,
     val amountGel: BigDecimal,
     val targetGoalId: String?,
@@ -54,4 +54,3 @@ data class TransactionEntity(
         )
     }
 }
-

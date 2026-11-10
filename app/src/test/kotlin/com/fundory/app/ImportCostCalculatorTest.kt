@@ -150,5 +150,30 @@ class ImportCostCalculatorTest {
         assertEquals(BigDecimal("235.00"), result.totalTaxesAndFeesGel)
         assertEquals(BigDecimal("1235.00"), result.grandTotalGel)
     }
+
+    @Test
+    fun testLocalPurchaseExemptFromCustomsAndInternationalShipping() {
+        val config = ImportCalculationConfig(
+            isLocalPurchase = true,
+            fixedShippingFee = BigDecimal("10.00"), // Local delivery in Georgia
+            customsThresholdGel = BigDecimal("300.00"),
+            vatRatePercent = 18.0,
+            customsDeclarationFeeGel = BigDecimal("20.00")
+        )
+
+        val result = calculator.calculate(
+            productsSubtotalGel = BigDecimal("150.00"),
+            config = config,
+            ratesToGel = ratesToGel
+        )
+
+        assertEquals(BigDecimal("150.00"), result.productsSubtotalGel)
+        assertEquals(BigDecimal("10.00"), result.shippingTotalGel)
+        assertFalse(result.isTaxableUnderCustoms)
+        assertEquals(BigDecimal("0.00"), result.estimatedVatGel)
+        assertEquals(BigDecimal("0.00"), result.customsDeclarationFeeGel)
+        assertEquals(BigDecimal("0.00"), result.currencyConversionFeesGel)
+        assertEquals(BigDecimal("160.00"), result.grandTotalGel)
+    }
 }
 

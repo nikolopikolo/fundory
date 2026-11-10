@@ -1,6 +1,6 @@
 package com.fundory.app.ui.navigation
 
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
@@ -14,6 +14,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
@@ -62,12 +63,15 @@ val BottomNavItems = listOf(
 @Composable
 fun FundoryBottomNavBar(
     currentRoute: String?,
-    onNavigateToRoute: (String) -> Unit
+    onNavigateToRoute: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    windowInsets: WindowInsets = NavigationBarDefaults.windowInsets
 ) {
     NavigationBar(
-        modifier = Modifier.height(72.dp),
+        modifier = modifier,
+        windowInsets = windowInsets,
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 0.dp
+        tonalElevation = 2.dp
     ) {
         BottomNavItems.forEach { item ->
             val isSelected = currentRoute == item.route
@@ -91,7 +95,7 @@ fun FundoryBottomNavBar(
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = FundoryGreen,
                     selectedTextColor = FundoryGreen,
-                    indicatorColor = FundoryGreen.copy(alpha = 0.15f),
+                    indicatorColor = FundoryGreen.copy(alpha = 0.16f),
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -99,4 +103,3 @@ fun FundoryBottomNavBar(
         }
     }
 }
-

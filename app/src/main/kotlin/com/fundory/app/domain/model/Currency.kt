@@ -23,11 +23,14 @@ object Currencies {
     val TRY = SupportedCurrency("TRY", "Turkish Lira", "₺", "🇹🇷")
 
     val ALL = listOf(GEL, USD, EUR, CNY, GBP, JPY, TRY)
+    val supportedCodes: List<String> = ALL.map { it.code }
 
     fun find(code: String): SupportedCurrency {
         return ALL.find { it.code.equals(code, ignoreCase = true) }
             ?: SupportedCurrency(code.uppercase(), code.uppercase(), code.uppercase(), "🌐")
     }
+
+    fun get(code: String): SupportedCurrency = find(code)
 
     private val symbols = DecimalFormatSymbols(Locale.US).apply {
         groupingSeparator = ','

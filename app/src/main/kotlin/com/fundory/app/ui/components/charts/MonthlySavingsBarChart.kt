@@ -189,6 +189,13 @@ fun MonthlySavingsBarChart(
         } else {
             val axisColor = MaterialTheme.colorScheme.outlineVariant
             val textPaintColor = MaterialTheme.colorScheme.onSurfaceVariant.hashCode()
+            val textPaint = remember(textPaintColor) {
+                android.graphics.Paint().apply {
+                    color = textPaintColor
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    isAntiAlias = true
+                }
+            }
 
             Canvas(
                 modifier = Modifier
@@ -206,6 +213,7 @@ fun MonthlySavingsBarChart(
                 val height = size.height
                 val labelHeight = 24.dp.toPx()
                 val chartHeight = height - labelHeight
+                textPaint.textSize = 10.sp.toPx()
 
                 // Find max absolute value
                 val maxVal = data.maxOfOrNull { item ->
@@ -249,12 +257,6 @@ fun MonthlySavingsBarChart(
                     )
 
                     // Month label text under chart
-                    val textPaint = android.graphics.Paint().apply {
-                        color = textPaintColor
-                        textSize = 10.sp.toPx()
-                        textAlign = android.graphics.Paint.Align.CENTER
-                        isAntiAlias = true
-                    }
                     val shortLabel = item.monthLabel.take(3)
                     drawIntoCanvas { canvas ->
                         canvas.nativeCanvas.drawText(

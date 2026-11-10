@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fundory_green">#38B273</color>
+    <color name="fundory_green_dark">#2D8E5C</color>
+    <color name="fundory_green_light">#5ED197</color>
+    <color name="fundory_dark_bg">#0D110F</color>
+    <color name="fundory_dark_surface">#141916</color>
+    <color name="fundory_splash_bg">#0D110F</color>
+</resources>
+

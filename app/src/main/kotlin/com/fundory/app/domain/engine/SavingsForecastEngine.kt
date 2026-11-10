@@ -77,9 +77,9 @@ class SavingsForecastEngine {
                 remainingAmountGel = remaining,
                 remainingMonths = -1,
                 estimatedCompletionDateEpochMillis = null,
-                completionDateFormatted = "Indefinite (No Monthly Savings)",
+                completionDateFormatted = "Not enough information to estimate",
                 timeline = timeline,
-                explanationText = "With 0.00 GEL monthly savings and no future bonuses, the target cannot be projected."
+                explanationText = "No monthly savings plan configured. Enter a monthly contribution in Settings to calculate projection."
             )
         }
 

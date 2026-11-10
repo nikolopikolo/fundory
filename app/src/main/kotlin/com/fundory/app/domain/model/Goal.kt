@@ -16,9 +16,11 @@ data class Goal(
     val iconName: String = "savings",
     val colorHex: String = "#38B273",
     val targetAmountGel: BigDecimal,
-    val isTargetCalculatedFromProducts: Boolean = true,
+    val originalTargetAmount: BigDecimal = targetAmountGel,
+    val targetCurrency: String = "GEL",
+    val isTargetCalculatedFromProducts: Boolean = false,
     val savedAmountGel: BigDecimal = BigDecimal.ZERO,
-    val monthlyPlanGel: BigDecimal = BigDecimal("100.00"),
+    val monthlyPlanGel: BigDecimal = BigDecimal.ZERO,
     val targetDateEpochMillis: Long? = null,
     val status: GoalStatus = GoalStatus.ACTIVE,
     val createdDateEpochMillis: Long = System.currentTimeMillis(),
@@ -41,4 +43,3 @@ data class Goal(
     val isCompleted: Boolean
         get() = savedAmountGel >= targetAmountGel && targetAmountGel > BigDecimal.ZERO
 }
-

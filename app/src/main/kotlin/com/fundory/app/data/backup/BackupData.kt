@@ -28,9 +28,11 @@ data class BackupGoal(
     val iconName: String = "savings",
     val colorHex: String = "#38B273",
     val targetAmountGel: String,
-    val isTargetCalculatedFromProducts: Boolean = true,
+    val originalTargetAmount: String = targetAmountGel,
+    val targetCurrency: String = "GEL",
+    val isTargetCalculatedFromProducts: Boolean = false,
     val savedAmountGel: String,
-    val monthlyPlanGel: String,
+    val monthlyPlanGel: String = "0.00",
     val targetDateEpochMillis: Long? = null,
     val status: String = GoalStatus.ACTIVE.name,
     val createdDateEpochMillis: Long,
@@ -61,7 +63,7 @@ data class BackupProduct(
 @Serializable
 data class BackupTransaction(
     val id: String,
-    val goalId: String,
+    val goalId: String? = null,
     val type: String = TransactionType.DEPOSIT.name,
     val amountGel: String,
     val targetGoalId: String? = null,
@@ -106,7 +108,7 @@ object BackupValidator {
             // Verify integrity: every product and transaction must reference a valid goal in the backup
             val goalIds = backup.goals.map { it.id }.toSet()
             val orphanProducts = backup.products.filter { it.goalId !in goalIds }
-            val orphanTransactions = backup.transactions.filter { it.goalId !in goalIds }
+            val orphanTransactions = backup.transactions.filter { it.goalId != null && it.goalId !in goalIds }
 
             if (orphanProducts.isNotEmpty() || orphanTransactions.isNotEmpty()) {
                 return BackupValidationResult(

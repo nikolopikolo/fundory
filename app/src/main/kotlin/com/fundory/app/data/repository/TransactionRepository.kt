@@ -11,7 +11,9 @@ import com.fundory.app.domain.model.Transaction
 import com.fundory.app.domain.model.TransactionType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,28 +37,47 @@ class TransactionRepository @Inject constructor(
     ) { transactions, goals ->
         val goalMap = goals.associate { it.id to it.name }
         transactions.map { entity ->
+            val gName = if (entity.goalId == null) "General Savings" else (goalMap[entity.goalId] ?: "Unknown Goal")
+            val targetGName = if (entity.targetGoalId == null) null else (goalMap[entity.targetGoalId] ?: "General Savings")
             entity.toDomain(
-                goalName = goalMap[entity.goalId] ?: "Unknown Goal",
-                targetGoalName = entity.targetGoalId?.let { goalMap[it] }
+                goalName = gName,
+                targetGoalName = targetGName
             )
         }
     }
 
-    fun getTransactionsByGoalFlow(goalId: String): Flow<List<Transaction>> = combine(
-        transactionDao.getTransactionsByGoalFlow(goalId),
-        goalDao.getAllGoalsFlow()
-    ) { transactions, goals ->
-        val goalMap = goals.associate { it.id to it.name }
-        transactions.map { entity ->
-            entity.toDomain(
-                goalName = goalMap[entity.goalId] ?: "Unknown Goal",
-                targetGoalName = entity.targetGoalId?.let { goalMap[it] }
-            )
+    val generalSavingsBalanceFlow: Flow<BigDecimal> = transactionDao.getGeneralSavingsTransactionsFlow().map { list ->
+        val sum = list.fold(BigDecimal.ZERO) { acc, tx -> acc.add(tx.toDomain().signedAmountGel) }
+        (if (sum < BigDecimal.ZERO) BigDecimal.ZERO else sum).setScale(2, RoundingMode.HALF_UP)
+    }
+
+    val totalSavingsFlow: Flow<BigDecimal> = transactionDao.getAllTransactionsFlow().map { list ->
+        val sum = list.fold(BigDecimal.ZERO) { acc, tx -> acc.add(tx.toDomain().signedAmountGel) }
+        (if (sum < BigDecimal.ZERO) BigDecimal.ZERO else sum).setScale(2, RoundingMode.HALF_UP)
+    }
+
+    fun getTransactionsByGoalFlow(goalId: String?): Flow<List<Transaction>> {
+        val rawFlow = if (goalId == null) {
+            transactionDao.getGeneralSavingsTransactionsFlow()
+        } else {
+            transactionDao.getTransactionsByGoalFlow(goalId)
+        }
+
+        return combine(rawFlow, goalDao.getAllGoalsFlow()) { transactions, goals ->
+            val goalMap = goals.associate { it.id to it.name }
+            transactions.map { entity ->
+                val gName = if (entity.goalId == null) "General Savings" else (goalMap[entity.goalId] ?: "Unknown Goal")
+                val targetGName = if (entity.targetGoalId == null) null else (goalMap[entity.targetGoalId] ?: "General Savings")
+                entity.toDomain(
+                    goalName = gName,
+                    targetGoalName = targetGName
+                )
+            }
         }
     }
 
     suspend fun recordDeposit(
-        goalId: String,
+        goalId: String?,
         amountGel: BigDecimal,
         note: String? = null,
         timestampEpochMillis: Long = System.currentTimeMillis()
@@ -78,7 +99,7 @@ class TransactionRepository @Inject constructor(
     }
 
     suspend fun recordWithdrawal(
-        goalId: String,
+        goalId: String?,
         amountGel: BigDecimal,
         note: String? = null,
         timestampEpochMillis: Long = System.currentTimeMillis()
@@ -87,13 +108,24 @@ class TransactionRepository @Inject constructor(
             return TransactionResult.Failure("Withdrawal amount must be greater than zero.")
         }
 
-        val currentGoal = goalDao.getGoalById(goalId)
-            ?: return TransactionResult.Failure("Selected goal not found.")
+        if (goalId != null) {
+            val currentGoal = goalDao.getGoalById(goalId)
+                ?: return TransactionResult.Failure("Selected goal not found.")
 
-        if (currentGoal.savedAmountGel < amountGel) {
-            return TransactionResult.Failure(
-                "Insufficient saved balance: goal has ${currentGoal.savedAmountGel} GEL saved, cannot withdraw ${amountGel} GEL."
-            )
+            if (currentGoal.savedAmountGel < amountGel) {
+                return TransactionResult.Failure(
+                    "Insufficient saved balance: goal has ${currentGoal.savedAmountGel} GEL saved, cannot withdraw ${amountGel} GEL."
+                )
+            }
+        } else {
+            // General Savings withdrawal
+            val generalTx = transactionDao.getGeneralSavingsTransactionsAscending()
+            val generalBalance = generalTx.fold(BigDecimal.ZERO) { acc, tx -> acc.add(tx.toDomain().signedAmountGel) }
+            if (generalBalance < amountGel) {
+                return TransactionResult.Failure(
+                    "Insufficient balance in General Savings: available balance is ${generalBalance} GEL, cannot withdraw ${amountGel} GEL."
+                )
+            }
         }
 
         val tx = Transaction(
@@ -109,7 +141,7 @@ class TransactionRepository @Inject constructor(
     }
 
     suspend fun recordAdjustment(
-        goalId: String,
+        goalId: String?,
         adjustedAmountGel: BigDecimal, // can be positive or negative
         note: String? = null,
         timestampEpochMillis: Long = System.currentTimeMillis()
@@ -118,12 +150,14 @@ class TransactionRepository @Inject constructor(
             return TransactionResult.Failure("Adjustment amount cannot be zero.")
         }
 
-        val currentGoal = goalDao.getGoalById(goalId)
-            ?: return TransactionResult.Failure("Selected goal not found.")
+        if (goalId != null) {
+            val currentGoal = goalDao.getGoalById(goalId)
+                ?: return TransactionResult.Failure("Selected goal not found.")
 
-        val newBalance = currentGoal.savedAmountGel.add(adjustedAmountGel)
-        if (newBalance < BigDecimal.ZERO) {
-            return TransactionResult.Failure("Adjustment would result in negative balance (${newBalance} GEL).")
+            val newBalance = currentGoal.savedAmountGel.add(adjustedAmountGel)
+            if (newBalance < BigDecimal.ZERO) {
+                return TransactionResult.Failure("Adjustment would result in negative balance (${newBalance} GEL).")
+            }
         }
 
         val tx = Transaction(
@@ -139,8 +173,8 @@ class TransactionRepository @Inject constructor(
     }
 
     suspend fun recordTransfer(
-        sourceGoalId: String,
-        destinationGoalId: String,
+        sourceGoalId: String?,
+        destinationGoalId: String?,
         amountGel: BigDecimal,
         note: String? = null,
         timestampEpochMillis: Long = System.currentTimeMillis()
@@ -149,19 +183,40 @@ class TransactionRepository @Inject constructor(
             return TransactionResult.Failure("Transfer amount must be greater than zero.")
         }
         if (sourceGoalId == destinationGoalId) {
-            return TransactionResult.Failure("Cannot transfer to the same goal.")
+            return TransactionResult.Failure("Cannot transfer to the same location.")
         }
 
         return database.withTransaction {
-            val sourceGoal = goalDao.getGoalById(sourceGoalId)
-                ?: return@withTransaction TransactionResult.Failure("Source goal not found.")
-            val destGoal = goalDao.getGoalById(destinationGoalId)
-                ?: return@withTransaction TransactionResult.Failure("Destination goal not found.")
+            val sourceName = if (sourceGoalId == null) {
+                "General Savings"
+            } else {
+                goalDao.getGoalById(sourceGoalId)?.name
+                    ?: return@withTransaction TransactionResult.Failure("Source goal not found.")
+            }
 
-            if (sourceGoal.savedAmountGel < amountGel) {
-                return@withTransaction TransactionResult.Failure(
-                    "Insufficient balance in source goal (${sourceGoal.savedAmountGel} GEL)."
-                )
+            val destName = if (destinationGoalId == null) {
+                "General Savings"
+            } else {
+                goalDao.getGoalById(destinationGoalId)?.name
+                    ?: return@withTransaction TransactionResult.Failure("Destination goal not found.")
+            }
+
+            // Check source balance
+            if (sourceGoalId != null) {
+                val sourceGoal = goalDao.getGoalById(sourceGoalId)!!
+                if (sourceGoal.savedAmountGel < amountGel) {
+                    return@withTransaction TransactionResult.Failure(
+                        "Insufficient balance in source goal (${sourceGoal.savedAmountGel} GEL)."
+                    )
+                }
+            } else {
+                val generalTx = transactionDao.getGeneralSavingsTransactionsAscending()
+                val generalBalance = generalTx.fold(BigDecimal.ZERO) { acc, tx -> acc.add(tx.toDomain().signedAmountGel) }
+                if (generalBalance < amountGel) {
+                    return@withTransaction TransactionResult.Failure(
+                        "Insufficient balance in General Savings (${generalBalance} GEL)."
+                    )
+                }
             }
 
             // 1. Outgoing transfer transaction
@@ -172,7 +227,7 @@ class TransactionRepository @Inject constructor(
                 amountGel = amountGel,
                 targetGoalId = destinationGoalId,
                 timestampEpochMillis = timestampEpochMillis,
-                note = note ?: "Transfer to ${destGoal.name}"
+                note = note ?: "Transfer to $destName"
             )
             transactionDao.insertTransaction(outgoingTx)
 
@@ -184,13 +239,13 @@ class TransactionRepository @Inject constructor(
                 amountGel = amountGel,
                 targetGoalId = sourceGoalId,
                 timestampEpochMillis = timestampEpochMillis,
-                note = note ?: "Transfer from ${sourceGoal.name}"
+                note = note ?: "Transfer from $sourceName"
             )
             transactionDao.insertTransaction(incomingTx)
 
-            // 3. Recalculate both goal balances
-            recalculateGoalBalanceInternal(sourceGoalId)
-            recalculateGoalBalanceInternal(destinationGoalId)
+            // 3. Recalculate goal balances
+            if (sourceGoalId != null) recalculateGoalBalanceInternal(sourceGoalId)
+            if (destinationGoalId != null) recalculateGoalBalanceInternal(destinationGoalId)
 
             TransactionResult.Success
         }
@@ -202,10 +257,12 @@ class TransactionRepository @Inject constructor(
                 ?: return@withTransaction TransactionResult.Failure("Transaction not found.")
 
             transactionDao.deleteTransactionById(transactionId)
-            recalculateGoalBalanceInternal(tx.goalId)
-
-            // If it was a transfer, also check target
-            tx.targetGoalId?.let { recalculateGoalBalanceInternal(it) }
+            if (tx.goalId != null) {
+                recalculateGoalBalanceInternal(tx.goalId)
+            }
+            if (tx.targetGoalId != null) {
+                recalculateGoalBalanceInternal(tx.targetGoalId)
+            }
 
             TransactionResult.Success
         }
@@ -214,8 +271,12 @@ class TransactionRepository @Inject constructor(
     suspend fun updateTransaction(transaction: Transaction): TransactionResult {
         return database.withTransaction {
             transactionDao.updateTransaction(TransactionEntity.fromDomain(transaction))
-            recalculateGoalBalanceInternal(transaction.goalId)
-            transaction.targetGoalId?.let { recalculateGoalBalanceInternal(it) }
+            if (transaction.goalId != null) {
+                recalculateGoalBalanceInternal(transaction.goalId)
+            }
+            if (transaction.targetGoalId != null) {
+                recalculateGoalBalanceInternal(transaction.targetGoalId)
+            }
             TransactionResult.Success
         }
     }
@@ -223,9 +284,11 @@ class TransactionRepository @Inject constructor(
     private suspend fun executeAtomicTransaction(transaction: Transaction): TransactionResult {
         return database.withTransaction {
             transactionDao.insertTransaction(TransactionEntity.fromDomain(transaction))
-            val recalculated = recalculateGoalBalanceInternal(transaction.goalId)
-            if (recalculated < BigDecimal.ZERO) {
-                throw IllegalStateException("Transaction caused negative balance: $recalculated")
+            if (transaction.goalId != null) {
+                val recalculated = recalculateGoalBalanceInternal(transaction.goalId)
+                if (recalculated < BigDecimal.ZERO) {
+                    throw IllegalStateException("Transaction caused negative balance: $recalculated")
+                }
             }
             TransactionResult.Success
         }
@@ -274,4 +337,3 @@ class TransactionRepository @Inject constructor(
         return sum
     }
 }
-

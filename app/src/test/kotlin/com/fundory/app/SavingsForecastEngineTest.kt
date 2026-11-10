@@ -60,7 +60,7 @@ class SavingsForecastEngineTest {
 
         assertEquals(-1, result.remainingMonths)
         assertEquals(BigDecimal("800.00"), result.remainingAmountGel)
-        assertEquals("Indefinite (No Monthly Savings)", result.completionDateFormatted)
+        assertEquals("Not enough information to estimate", result.completionDateFormatted)
     }
 
     @Test

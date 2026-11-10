@@ -23,6 +23,12 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE goalId = :goalId ORDER BY timestampEpochMillis ASC")
     suspend fun getTransactionsByGoalAscending(goalId: String): List<TransactionEntity>
 
+    @Query("SELECT * FROM transactions WHERE goalId IS NULL ORDER BY timestampEpochMillis DESC")
+    fun getGeneralSavingsTransactionsFlow(): Flow<List<TransactionEntity>>
+
+    @Query("SELECT * FROM transactions WHERE goalId IS NULL ORDER BY timestampEpochMillis ASC")
+    suspend fun getGeneralSavingsTransactionsAscending(): List<TransactionEntity>
+
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getTransactionById(id: String): TransactionEntity?
 
@@ -44,4 +50,3 @@ interface TransactionDao {
     @Query("DELETE FROM transactions")
     suspend fun deleteAllTransactions()
 }
-

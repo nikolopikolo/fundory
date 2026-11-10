@@ -186,5 +186,53 @@ class TransactionBalanceCalculationTest {
         val decNet = decTx.fold(BigDecimal.ZERO) { acc, tx -> acc.add(tx.signedAmountGel) }
         assertEquals(BigDecimal("200.00"), decNet)
     }
+
+    @Test
+    fun testGeneralSavingsAndTotalSavingsInvariant() {
+        // User deposits 40 GEL without a goal (General Savings)
+        val generalDeposit = Transaction(
+            id = "gen_1",
+            goalId = null,
+            type = TransactionType.DEPOSIT,
+            amountGel = BigDecimal("40.00")
+        )
+        assertTrue(generalDeposit.isGeneralSavings)
+
+        // User creates a goal and deposits 100 GEL into it
+        val goalDeposit = Transaction(
+            id = "goal_1",
+            goalId = "pc_goal",
+            type = TransactionType.DEPOSIT,
+            amountGel = BigDecimal("100.00")
+        )
+        assertFalse(goalDeposit.isGeneralSavings)
+
+        // User withdraws 10 GEL from General Savings
+        val generalWithdrawal = Transaction(
+            id = "gen_2",
+            goalId = null,
+            type = TransactionType.WITHDRAWAL,
+            amountGel = BigDecimal("10.00")
+        )
+
+        val allTransactions = listOf(generalDeposit, goalDeposit, generalWithdrawal)
+
+        val generalSavingsBalance = allTransactions
+            .filter { it.isGeneralSavings }
+            .fold(BigDecimal.ZERO) { acc, tx -> acc.add(tx.signedAmountGel) }
+        assertEquals(BigDecimal("30.00"), generalSavingsBalance)
+
+        val goalSavingsBalance = allTransactions
+            .filter { it.goalId == "pc_goal" }
+            .fold(BigDecimal.ZERO) { acc, tx -> acc.add(tx.signedAmountGel) }
+        assertEquals(BigDecimal("100.00"), goalSavingsBalance)
+
+        val totalSavingsAcrossAll = allTransactions
+            .fold(BigDecimal.ZERO) { acc, tx -> acc.add(tx.signedAmountGel) }
+        assertEquals(BigDecimal("130.00"), totalSavingsAcrossAll)
+
+        // Invariant check: Total = General + Sum(Goals)
+        assertEquals(totalSavingsAcrossAll, generalSavingsBalance.add(goalSavingsBalance))
+    }
 }
 

@@ -13,23 +13,38 @@ class ImportCostCalculator {
         ratesToGel: Map<String, BigDecimal>
     ): ImportCalculationResult {
         // 1. Calculate shipping total in GEL
-        val shippingRate = ratesToGel[config.shippingCurrency.uppercase()] ?: BigDecimal.ONE
-        val weightRateAmount = config.ratePerKg.multiply(BigDecimal.valueOf(config.weightKg))
-        val rawShippingForeign = weightRateAmount.add(config.fixedShippingFee)
-        val shippingTotalGel = rawShippingForeign.multiply(shippingRate).setScale(2, RoundingMode.HALF_UP)
+        val shippingTotalGel: BigDecimal
+        if (config.isLocalPurchase) {
+            shippingTotalGel = config.fixedShippingFee.setScale(2, RoundingMode.HALF_UP)
+        } else {
+            val shippingRate = ratesToGel[config.shippingCurrency.uppercase()] ?: BigDecimal.ONE
+            val weightRateAmount = config.ratePerKg.multiply(BigDecimal.valueOf(config.weightKg))
+            val rawShippingForeign = weightRateAmount.add(config.fixedShippingFee)
+            shippingTotalGel = rawShippingForeign.multiply(shippingRate).setScale(2, RoundingMode.HALF_UP)
+        }
 
-        // 2. Transaction fees (percentage of products subtotal)
-        val txFeeRate = BigDecimal.valueOf(config.transactionFeePercent).divide(BigDecimal(100), 4, RoundingMode.HALF_UP)
-        val transactionFeesGel = productsSubtotalGel.multiply(txFeeRate).setScale(2, RoundingMode.HALF_UP)
+        // 2. Transaction fees (only if card fee toggle is enabled or percent > 0)
+        val transactionFeesGel = if ((config.applyCardTransactionFee || config.transactionFeePercent > 0.0) && config.transactionFeePercent > 0.0) {
+            val txFeeRate = BigDecimal.valueOf(config.transactionFeePercent).divide(BigDecimal(100), 4, RoundingMode.HALF_UP)
+            productsSubtotalGel.multiply(txFeeRate).setScale(2, RoundingMode.HALF_UP)
+        } else {
+            BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+        }
 
-        // 3. Currency conversion fee (percentage of products subtotal + shipping)
-        val fxFeeRate = BigDecimal.valueOf(config.currencyConversionFeePercent).divide(BigDecimal(100), 4, RoundingMode.HALF_UP)
-        val currencyConversionFeesGel = productsSubtotalGel.add(shippingTotalGel)
-            .multiply(fxFeeRate).setScale(2, RoundingMode.HALF_UP)
+        // 3. Currency conversion fee (only for international & if enabled)
+        val currencyConversionFeesGel = if (!config.isLocalPurchase && (config.applyCurrencyConversionFee || config.currencyConversionFeePercent > 0.0) && config.currencyConversionFeePercent > 0.0) {
+            val fxFeeRate = BigDecimal.valueOf(config.currencyConversionFeePercent).divide(BigDecimal(100), 4, RoundingMode.HALF_UP)
+            productsSubtotalGel.add(shippingTotalGel)
+                .multiply(fxFeeRate).setScale(2, RoundingMode.HALF_UP)
+        } else {
+            BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+        }
 
-        // 4. Customs / Import Taxes (Georgian Customs rule: items + shipping > threshold)
+        // 4. Customs / Import Taxes (only for international purchases when toggle is enabled)
         val taxableBase = productsSubtotalGel.add(shippingTotalGel)
-        val isTaxable = config.isGeorgianImportTaxMode &&
+        val isTaxable = !config.isLocalPurchase &&
+                config.isGeorgianImportTaxMode &&
+                config.applyImportVatAndCustoms &&
                 !config.isCustomsExempt &&
                 (taxableBase > config.customsThresholdGel)
 
@@ -57,13 +72,25 @@ class ImportCostCalculator {
             .setScale(2, RoundingMode.HALF_UP)
 
         val explanation = buildString {
-            append("Products: ${productsSubtotalGel} GEL. ")
-            append("Shipping (${config.weightKg} kg via ${config.shippingMethod}): ${shippingTotalGel} GEL. ")
-            if (isTaxable) {
-                append("Import taxable because CIF total (${taxableBase} GEL) exceeds ${config.customsThresholdGel} GEL. ")
-                append("18% VAT = ${estimatedVatGel} GEL + ${customsDeclarationFeeGel} GEL customs declaration fee.")
-            } else if (config.isGeorgianImportTaxMode) {
-                append("CIF total (${taxableBase} GEL) is within the tax-free limit (${config.customsThresholdGel} GEL). No import VAT.")
+            if (config.isLocalPurchase) {
+                append("Local Purchase in Georgia. ")
+                append("Products: ${productsSubtotalGel} GEL. ")
+                if (shippingTotalGel > BigDecimal.ZERO) append("Local delivery: ${shippingTotalGel} GEL. ")
+                if (transactionFeesGel > BigDecimal.ZERO) append("Payment fee: ${transactionFeesGel} GEL. ")
+                append("No customs duties or international shipping.")
+            } else {
+                append("Products: ${productsSubtotalGel} GEL. ")
+                if (shippingTotalGel > BigDecimal.ZERO) {
+                    append("Shipping: ${shippingTotalGel} GEL. ")
+                }
+                if (isTaxable) {
+                    append("Import taxable: declared value (${taxableBase} GEL) exceeds ${config.customsThresholdGel} GEL. ")
+                    append("18% VAT = ${estimatedVatGel} GEL + ${customsDeclarationFeeGel} GEL customs declaration fee.")
+                } else if (!config.applyImportVatAndCustoms) {
+                    append("Import VAT and customs fees excluded by user preference.")
+                } else {
+                    append("CIF total (${taxableBase} GEL) is within the tax-free limit (${config.customsThresholdGel} GEL). No import VAT.")
+                }
             }
         }
 
@@ -81,4 +108,3 @@ class ImportCostCalculator {
         )
     }
 }
-

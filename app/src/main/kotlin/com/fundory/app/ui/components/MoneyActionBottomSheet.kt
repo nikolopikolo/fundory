@@ -11,16 +11,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fundory.app.domain.model.Currencies
 import com.fundory.app.domain.model.Goal
-import com.fundory.app.domain.model.TransactionType
 import com.fundory.app.ui.theme.FundoryGreen
 import com.fundory.app.ui.theme.NegativeRed
 import java.math.BigDecimal
@@ -56,20 +58,37 @@ import java.math.BigDecimal
 fun MoneyActionBottomSheet(
     isDeposit: Boolean, // true = Add Money, false = Withdraw Money
     goals: List<Goal>,
-    selectedGoalId: String?,
+    generalSavingsBalance: BigDecimal = BigDecimal.ZERO,
+    selectedGoalId: String? = null,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     onDismiss: () -> Unit,
-    onSubmit: (goalId: String, amount: BigDecimal, note: String?) -> Unit
+    onSubmit: (goalId: String?, amount: BigDecimal, note: String?) -> Unit
 ) {
+    // Determine default destination:
+    // If selectedGoalId is passed, use it.
+    // If exactly 1 goal exists and no explicit goalId passed, default to that goal.
+    // If 0 goals exist, default to null (General Savings).
     var chosenGoalId by remember(selectedGoalId, goals) {
-        mutableStateOf(selectedGoalId ?: goals.firstOrNull()?.id ?: "")
+        mutableStateOf(
+            if (selectedGoalId != null) {
+                selectedGoalId
+            } else if (goals.size == 1) {
+                goals.first().id
+            } else {
+                null // General Savings
+            }
+        )
     }
+
     var amountText by remember { mutableStateOf("") }
     var noteText by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isGoalDropdownExpanded by remember { mutableStateOf(false) }
+    var isSubmitting by remember { mutableStateOf(false) }
 
-    val activeGoal = goals.find { it.id == chosenGoalId } ?: goals.firstOrNull()
+    val activeGoal = if (chosenGoalId != null) goals.find { it.id == chosenGoalId } else null
+    val destinationName = if (chosenGoalId == null) "General Savings" else (activeGoal?.name ?: "Unknown Goal")
+    val availableBalance = if (chosenGoalId == null) generalSavingsBalance else (activeGoal?.savedAmountGel ?: BigDecimal.ZERO)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -111,7 +130,7 @@ fun MoneyActionBottomSheet(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (isDeposit) "Record savings towards your goal" else "Take money out of savings",
+                        text = if (isDeposit) "Record deposit to $destinationName" else "Withdraw funds from $destinationName",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -120,10 +139,10 @@ fun MoneyActionBottomSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Goal Picker
-            if (goals.size > 1) {
+            // Destination Selector (Only when goals exist, allows choosing General Savings or Goal)
+            if (goals.isNotEmpty()) {
                 Text(
-                    text = "Select Goal",
+                    text = if (isDeposit) "Deposit Destination" else "Withdraw Source",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -137,22 +156,35 @@ fun MoneyActionBottomSheet(
                             shape = RoundedCornerShape(12.dp)
                         )
                         .clickable { isGoalDropdownExpanded = true }
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text(
-                                text = activeGoal?.name ?: "Select Goal",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (chosenGoalId == null) Icons.Default.AccountBalanceWallet else Icons.Default.Flag,
+                                contentDescription = null,
+                                tint = FundoryGreen,
+                                modifier = Modifier.size(20.dp)
                             )
-                            if (activeGoal != null) {
+                            Column {
                                 Text(
-                                    text = "Saved: ${Currencies.format(activeGoal.savedAmountGel)} / Target: ${Currencies.format(activeGoal.targetAmountGel)}",
+                                    text = destinationName,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = if (chosenGoalId == null) {
+                                        "Available: ${Currencies.format(generalSavingsBalance)}"
+                                    } else {
+                                        "Saved: ${Currencies.format(activeGoal?.savedAmountGel ?: BigDecimal.ZERO)} / Target: ${Currencies.format(activeGoal?.targetAmountGel ?: BigDecimal.ZERO)}"
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -165,16 +197,47 @@ fun MoneyActionBottomSheet(
                         expanded = isGoalDropdownExpanded,
                         onDismissRequest = { isGoalDropdownExpanded = false }
                     ) {
-                        goals.forEach { g ->
-                            DropdownMenuItem(
-                                text = {
+                        // General Savings option
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = FundoryGreen, modifier = Modifier.size(18.dp))
                                     Column {
-                                        Text(g.name, fontWeight = FontWeight.SemiBold)
+                                        Text("General Savings", fontWeight = FontWeight.SemiBold)
                                         Text(
-                                            "Saved: ${Currencies.format(g.savedAmountGel)}",
+                                            "Available: ${Currencies.format(generalSavingsBalance)}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                chosenGoalId = null
+                                isGoalDropdownExpanded = false
+                            }
+                        )
+
+                        // Goal options
+                        goals.forEach { g ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(Icons.Default.Flag, contentDescription = null, tint = FundoryGreen, modifier = Modifier.size(18.dp))
+                                        Column {
+                                            Text(g.name, fontWeight = FontWeight.SemiBold)
+                                            Text(
+                                                "Saved: ${Currencies.format(g.savedAmountGel)}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 },
                                 onClick = {
@@ -186,14 +249,34 @@ fun MoneyActionBottomSheet(
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-            } else if (activeGoal != null) {
-                // Single goal display
-                Text(
-                    text = "Goal: ${activeGoal.name} (Current: ${Currencies.format(activeGoal.savedAmountGel)})",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = FundoryGreen
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+            } else {
+                // When 0 goals exist, clearly inform user it's going to General Savings
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = FundoryGreen, modifier = Modifier.size(24.dp))
+                        Column {
+                            Text(
+                                text = "General Savings Balance",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Current balance: ${Currencies.format(generalSavingsBalance)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // Amount Input
@@ -262,7 +345,7 @@ fun MoneyActionBottomSheet(
                 value = noteText,
                 onValueChange = { noteText = it },
                 label = { Text("Note (Optional)") },
-                placeholder = { Text(if (isDeposit) "e.g. Monthly salary, Birthday gift" else "e.g. Emergency purchase") },
+                placeholder = { Text(if (isDeposit) "e.g. Salary, Gift" else "e.g. Purchase, Withdrawal") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
@@ -283,25 +366,23 @@ fun MoneyActionBottomSheet(
             // Submit Button
             Button(
                 onClick = {
+                    if (isSubmitting) return@Button
                     val amount = Currencies.parseAmount(amountText)
                     if (amount == null || amount <= BigDecimal.ZERO) {
                         errorMessage = "Please enter a valid amount greater than zero."
                         return@Button
                     }
 
-                    if (activeGoal == null) {
-                        errorMessage = "Please select a savings goal."
+                    if (!isDeposit && availableBalance < amount) {
+                        errorMessage = "Cannot withdraw ${Currencies.format(amount)}: current balance in $destinationName is only ${Currencies.format(availableBalance)}."
                         return@Button
                     }
 
-                    if (!isDeposit && activeGoal.savedAmountGel < amount) {
-                        errorMessage = "Cannot withdraw ${Currencies.format(amount)}: current savings balance is only ${Currencies.format(activeGoal.savedAmountGel)}."
-                        return@Button
-                    }
-
-                    onSubmit(activeGoal.id, amount, noteText.ifBlank { null })
+                    isSubmitting = true
+                    onSubmit(chosenGoalId, amount, noteText.ifBlank { null })
                     onDismiss()
                 },
+                enabled = !isSubmitting,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -320,4 +401,3 @@ fun MoneyActionBottomSheet(
         }
     }
 }
-

@@ -246,7 +246,7 @@ class AnalyticsViewModel @Inject constructor(
                 goalId = "all_goals_combined",
                 targetAmountGel = totalTarget,
                 currentSavedGel = totalSaved,
-                monthlyPlanGel = if (totalMonthly > BigDecimal.ZERO) totalMonthly else BigDecimal("100.00"),
+                monthlyPlanGel = totalMonthly,
                 scenario = scenario
             )
         }
