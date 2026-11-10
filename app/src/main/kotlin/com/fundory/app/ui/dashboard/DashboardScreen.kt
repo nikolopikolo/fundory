@@ -678,3 +678,4 @@ private fun EmptyGoalsCard(onAddGoal: () -> Unit) {
         }
     }
 }
+

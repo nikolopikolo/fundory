@@ -47,3 +47,4 @@ object DatabaseModule {
     @Provides
     fun provideGoalSnapshotDao(db: FundoryDatabase): GoalSnapshotDao = db.goalSnapshotDao()
 }
+

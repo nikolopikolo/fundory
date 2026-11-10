@@ -4,6 +4,10 @@ import com.fundory.app.domain.model.GoalStatus
 import com.fundory.app.domain.model.TransactionType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Serializable
 data class FundoryBackup(
@@ -84,3 +88,48 @@ data class BackupValidationResult(
     val errorMessage: String? = null,
     val backupData: FundoryBackup? = null
 )
+
+object BackupValidator {
+    fun validate(
+        rawJson: String,
+        json: Json = Json { ignoreUnknownKeys = true; isLenient = true }
+    ): BackupValidationResult {
+        return try {
+            val backup = json.decodeFromString<FundoryBackup>(rawJson)
+            if (backup.goals.isEmpty() && backup.products.isEmpty() && backup.transactions.isEmpty()) {
+                return BackupValidationResult(
+                    isValid = false,
+                    errorMessage = "The provided file contains no Fundory records."
+                )
+            }
+
+            // Verify integrity: every product and transaction must reference a valid goal in the backup
+            val goalIds = backup.goals.map { it.id }.toSet()
+            val orphanProducts = backup.products.filter { it.goalId !in goalIds }
+            val orphanTransactions = backup.transactions.filter { it.goalId !in goalIds }
+
+            if (orphanProducts.isNotEmpty() || orphanTransactions.isNotEmpty()) {
+                return BackupValidationResult(
+                    isValid = false,
+                    errorMessage = "Data integrity error: file contains orphaned items or transactions without a parent goal."
+                )
+            }
+
+            val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.US)
+            BackupValidationResult(
+                isValid = true,
+                goalCount = backup.goals.size,
+                productCount = backup.products.size,
+                transactionCount = backup.transactions.size,
+                snapshotCount = backup.snapshots.size,
+                exportDateFormatted = dateFormat.format(Date(backup.exportDateEpochMillis)),
+                backupData = backup
+            )
+        } catch (e: Exception) {
+            BackupValidationResult(
+                isValid = false,
+                errorMessage = "Invalid JSON format: ${e.localizedMessage ?: "Unknown parsing error"}"
+            )
+        }
+    }
+}

@@ -27,3 +27,4 @@ data class GoalSnapshotEntity(
     val targetAmountGel: BigDecimal,
     val completionPercentage: Float
 )
+

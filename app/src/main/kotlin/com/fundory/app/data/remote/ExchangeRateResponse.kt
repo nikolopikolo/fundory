@@ -26,3 +26,4 @@ data class NbgCurrencyItem(
     @SerialName("diff") val diff: Double = 0.0,
     @SerialName("date") val date: String? = null
 )
+

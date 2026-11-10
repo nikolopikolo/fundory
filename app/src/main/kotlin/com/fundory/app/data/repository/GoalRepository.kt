@@ -152,3 +152,4 @@ class GoalRepository @Inject constructor(
         goalSnapshotDao.insertSnapshot(snapshot)
     }
 }
+

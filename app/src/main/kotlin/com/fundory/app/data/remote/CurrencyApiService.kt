@@ -16,3 +16,4 @@ interface NbgApiService {
     @GET("gw/api/ct/monetarypolicy/currencies/en/json")
     suspend fun getLatestNbgRates(): List<NbgContainerResponse>
 }
+

@@ -53,3 +53,4 @@ data class Product(
         return originalPrice.multiply(BigDecimal(quantity)).multiply(rate).setScale(2, RoundingMode.HALF_UP)
     }
 }
+

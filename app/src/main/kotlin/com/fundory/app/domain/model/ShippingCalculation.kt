@@ -31,3 +31,4 @@ data class ImportCalculationResult(
     val grandTotalGel: BigDecimal,
     val breakdownExplanation: String
 )
+

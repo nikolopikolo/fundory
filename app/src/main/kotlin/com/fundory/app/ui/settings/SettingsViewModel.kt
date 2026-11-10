@@ -169,3 +169,4 @@ class SettingsViewModel @Inject constructor(
         _feedbackMessage.value = null
     }
 }
+

@@ -171,3 +171,4 @@ class SavingsForecastEngine {
         return remaining.divide(BigDecimal(months), 2, RoundingMode.CEILING)
     }
 }
+

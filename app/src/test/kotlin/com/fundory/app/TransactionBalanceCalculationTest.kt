@@ -187,3 +187,4 @@ class TransactionBalanceCalculationTest {
         assertEquals(BigDecimal("200.00"), decNet)
     }
 }
+

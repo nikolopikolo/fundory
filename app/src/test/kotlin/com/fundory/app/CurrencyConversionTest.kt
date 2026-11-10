@@ -92,3 +92,4 @@ class CurrencyConversionTest {
         assertTrue(productWithOverride.isManuallyOverridden)
     }
 }
+

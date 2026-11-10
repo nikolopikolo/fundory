@@ -11,3 +11,4 @@ data class ExchangeRateEntity(
     val rateToGel: BigDecimal, // 1 Foreign = rateToGel GEL (e.g. 1 USD = 2.594 GEL)
     val lastUpdatedEpochMillis: Long
 )
+

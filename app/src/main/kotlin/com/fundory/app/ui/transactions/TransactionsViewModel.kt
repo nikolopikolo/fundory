@@ -127,3 +127,4 @@ class TransactionsViewModel @Inject constructor(
         _operationMessage.value = null
     }
 }
+

@@ -76,3 +76,4 @@ object NetworkModule {
     @Singleton
     fun provideImportCostCalculator(): ImportCostCalculator = ImportCostCalculator()
 }
+

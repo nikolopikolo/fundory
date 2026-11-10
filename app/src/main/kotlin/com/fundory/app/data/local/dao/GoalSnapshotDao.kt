@@ -34,3 +34,4 @@ interface GoalSnapshotDao {
     @Query("DELETE FROM goal_snapshots")
     suspend fun deleteAllSnapshots()
 }
+

@@ -35,3 +35,4 @@ data class GoalProjectionResult(
     val timeline: List<ProjectedMonthPoint>,
     val explanationText: String
 )
+

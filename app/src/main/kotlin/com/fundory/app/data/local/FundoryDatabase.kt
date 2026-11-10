@@ -38,3 +38,4 @@ abstract class FundoryDatabase : RoomDatabase() {
         const val DATABASE_NAME = "fundory_database.db"
     }
 }
+

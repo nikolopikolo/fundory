@@ -43,3 +43,4 @@ class FundoryApplication : Application(), Configuration.Provider {
         const val CHANNEL_SAVINGS_MILESTONES = "fundory_milestones"
     }
 }
+

@@ -41,3 +41,4 @@ data class Goal(
     val isCompleted: Boolean
         get() = savedAmountGel >= targetAmountGel && targetAmountGel > BigDecimal.ZERO
 }
+

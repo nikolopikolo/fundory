@@ -32,3 +32,4 @@ data class Transaction(
             TransactionType.TRANSFER -> amountGel.negate()
         }
 }
+

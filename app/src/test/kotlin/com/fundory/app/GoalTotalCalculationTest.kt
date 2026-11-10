@@ -108,3 +108,4 @@ class GoalTotalCalculationTest {
         assertFalse(goal.isCompleted)
     }
 }
+

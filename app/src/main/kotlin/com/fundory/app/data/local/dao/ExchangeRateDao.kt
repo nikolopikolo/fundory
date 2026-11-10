@@ -25,3 +25,4 @@ interface ExchangeRateDao {
     @Query("DELETE FROM exchange_rates")
     suspend fun deleteAllRates()
 }
+

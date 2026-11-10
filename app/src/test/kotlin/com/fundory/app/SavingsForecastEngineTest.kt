@@ -146,7 +146,7 @@ class SavingsForecastEngineTest {
         }
         val bonus = FutureBonus(
             id = "bonus_1",
-            description = "Quarterly Work Bonus",
+            name = "Quarterly Work Bonus",
             amountGel = BigDecimal("200.00"),
             scheduledDateEpochMillis = bonusCal.timeInMillis
         )
@@ -197,3 +197,4 @@ class SavingsForecastEngineTest {
         assertEquals(BigDecimal("100.00"), requiredMonthly)
     }
 }
+
