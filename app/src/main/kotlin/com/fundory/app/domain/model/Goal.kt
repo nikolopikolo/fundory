@@ -28,7 +28,7 @@ data class Goal(
     val remainingAmountGel: BigDecimal
         get() {
             val rem = targetAmountGel.subtract(savedAmountGel)
-            return if (rem < BigDecimal.ZERO) BigDecimal.ZERO else rem
+            return (if (rem < BigDecimal.ZERO) BigDecimal.ZERO else rem).setScale(2, RoundingMode.HALF_UP)
         }
 
     val progressPercentage: Float

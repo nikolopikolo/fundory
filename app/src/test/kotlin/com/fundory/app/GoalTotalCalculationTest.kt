@@ -89,7 +89,7 @@ class GoalTotalCalculationTest {
             status = GoalStatus.COMPLETED
         )
 
-        assertEquals(BigDecimal.ZERO, goal.remainingAmountGel)
+        assertEquals(BigDecimal("0.00"), goal.remainingAmountGel)
         assertEquals(100f, goal.progressPercentage, 0.01f)
         assertTrue(goal.isCompleted)
     }
@@ -103,7 +103,7 @@ class GoalTotalCalculationTest {
             savedAmountGel = BigDecimal.ZERO
         )
 
-        assertEquals(BigDecimal.ZERO, goal.remainingAmountGel)
+        assertEquals(BigDecimal("0.00"), goal.remainingAmountGel)
         assertEquals(0f, goal.progressPercentage, 0.01f)
         assertFalse(goal.isCompleted)
     }

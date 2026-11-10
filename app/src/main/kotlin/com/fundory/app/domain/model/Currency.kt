@@ -47,7 +47,7 @@ object Currencies {
     }
 
     fun parseAmount(input: String): BigDecimal? {
-        val clean = input.trim().replace(",", "").replace("₾", "").replace("$", "").replace("€", "").replace("£", "")
+        val clean = input.filter { it.isDigit() || it == '.' || it == '-' }.trim()
         return try {
             if (clean.isBlank()) null else BigDecimal(clean).setScale(2, RoundingMode.HALF_UP)
         } catch (_: Exception) {

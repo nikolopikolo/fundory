@@ -41,8 +41,8 @@ class ImportCostCalculator {
             estimatedVatGel = taxableBase.multiply(vatRate).setScale(2, RoundingMode.HALF_UP)
             customsDeclarationFeeGel = config.customsDeclarationFeeGel.setScale(2, RoundingMode.HALF_UP)
         } else {
-            estimatedVatGel = BigDecimal.ZERO
-            customsDeclarationFeeGel = BigDecimal.ZERO
+            estimatedVatGel = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+            customsDeclarationFeeGel = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
         }
 
         val totalTaxesAndFeesGel = transactionFeesGel
