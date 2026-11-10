@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="quick_add_savings"
+        android:enabled="true"
+        android:icon="@drawable/ic_fundory_logo"
+        android:shortcutShortLabel="@string/quick_add"
+        android:shortcutLongLabel="@string/quick_add_savings">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.fundory.app"
+            android:targetClass="com.fundory.app.MainActivity">
+            <extra android:name="shortcut_action" android:value="quick_add" />
+        </intent>
+    </shortcut>
+</shortcuts>
+

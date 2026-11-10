@@ -189,6 +189,23 @@ fun SavingsGrowthLineChart(
             val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             val tooltipColor = MaterialTheme.colorScheme.surfaceVariant
 
+            val normalizedData = remember(points) {
+                if (points.isEmpty()) emptyList()
+                else {
+                    val maxBalance = points.maxOfOrNull { it.balanceGel } ?: BigDecimal.ONE
+                    val minBalance = points.minOfOrNull { it.balanceGel } ?: BigDecimal.ZERO
+                    val range = if (maxBalance > minBalance) {
+                        (maxBalance.subtract(minBalance)).toFloat().coerceAtLeast(10f)
+                    } else 10f
+
+                    points.mapIndexed { index, point ->
+                        val xFraction = if (points.size > 1) index.toFloat() / (points.size - 1) else 0.5f
+                        val yNorm = (point.balanceGel.subtract(minBalance)).toFloat() / range
+                        xFraction to yNorm
+                    }
+                }
+            }
+
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -222,14 +239,6 @@ fun SavingsGrowthLineChart(
                 val paddingTop = 16.dp.toPx()
                 val usableHeight = height - paddingTop - paddingBottom
 
-                val maxBalance = points.maxOfOrNull { it.balanceGel } ?: BigDecimal.ONE
-                val minBalance = points.minOfOrNull { it.balanceGel } ?: BigDecimal.ZERO
-                val range = if (maxBalance > minBalance) {
-                    (maxBalance.subtract(minBalance)).toFloat().coerceAtLeast(10f)
-                } else {
-                    10f
-                }
-
                 // Draw horizontal grid lines (3 levels)
                 val gridLevels = 3
                 for (i in 0..gridLevels) {
@@ -243,15 +252,10 @@ fun SavingsGrowthLineChart(
                     )
                 }
 
-                // Build line path
-                val coordinates = points.mapIndexed { index, point ->
-                    val x = if (points.size > 1) {
-                        (index.toFloat() / (points.size - 1)) * width
-                    } else {
-                        width / 2f
-                    }
-                    val balanceNorm = (point.balanceGel.subtract(minBalance)).toFloat() / range
-                    val y = paddingTop + usableHeight * (1f - (balanceNorm * animProgress.value))
+                // Build line path from precomputed normalized fractions
+                val coordinates = normalizedData.map { (xFraction, yNorm) ->
+                    val x = xFraction * width
+                    val y = paddingTop + usableHeight * (1f - (yNorm * animProgress.value))
                     Offset(x, y)
                 }
 

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -60,11 +61,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fundory.app.domain.model.Currencies
 import com.fundory.app.domain.model.Goal
 import com.fundory.app.domain.model.Product
+import com.fundory.app.domain.model.PurchaseStatus
 import com.fundory.app.domain.model.Transaction
 import com.fundory.app.domain.model.TransactionType
 import com.fundory.app.ui.components.AnimatedProgressBar
 import com.fundory.app.ui.components.ConfirmationDialog
 import com.fundory.app.ui.components.MoneyActionBottomSheet
+import com.fundory.app.ui.components.TransferFundsBottomSheet
 import com.fundory.app.ui.theme.FundoryGreen
 import com.fundory.app.ui.theme.NegativeRed
 import com.fundory.app.ui.theme.WarningAmber
@@ -97,6 +100,7 @@ fun GoalDetailScreen(
     var productToDelete by remember { mutableStateOf<Product?>(null) }
     var isMoneySheetOpen by remember { mutableStateOf(false) }
     var isDepositAction by remember { mutableStateOf(true) }
+    var isTransferSheetOpen by remember { mutableStateOf(false) }
 
     val goal = state.goal
     val rates = state.ratesToGel
@@ -202,13 +206,24 @@ fun GoalDetailScreen(
                             )
                         }
 
-                        OutlinedButton(
-                            onClick = { onNavigateToShippingCalculator(goalId) },
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Icon(Icons.Default.LocalShipping, contentDescription = null, modifier = Modifier.size(16.dp), tint = FundoryGreen)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Import Calculator", fontSize = 12.sp, color = FundoryGreen)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { isTransferSheetOpen = true },
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(16.dp), tint = FundoryGreen)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Transfer", fontSize = 12.sp, color = FundoryGreen)
+                            }
+
+                            OutlinedButton(
+                                onClick = { onNavigateToShippingCalculator(goalId) },
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(Icons.Default.LocalShipping, contentDescription = null, modifier = Modifier.size(16.dp), tint = FundoryGreen)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Calculator", fontSize = 12.sp, color = FundoryGreen)
+                            }
                         }
                     }
                 }
@@ -318,6 +333,20 @@ fun GoalDetailScreen(
                 } else {
                     viewModel.recordWithdrawal(targetId, amount, note)
                 }
+            }
+        )
+    }
+
+    if (isTransferSheetOpen) {
+        val allGoalsState by viewModel.uiState.collectAsStateWithLifecycle()
+        val generalBal by viewModel.generalSavingsBalanceFlow.collectAsStateWithLifecycle(initialValue = BigDecimal.ZERO)
+        TransferFundsBottomSheet(
+            goals = allGoalsState.goals,
+            generalSavingsBalance = generalBal,
+            initialSourceGoalId = goalId,
+            onDismiss = { isTransferSheetOpen = false },
+            onTransfer = { fromId, toId, amt, note ->
+                viewModel.transferFunds(fromId, toId, amt, note)
             }
         )
     }
@@ -502,6 +531,30 @@ private fun ProductItemCard(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
+                    // Status Badge (Ordered, Shipped, Delivered)
+                    if (product.purchaseStatus != PurchaseStatus.NOT_PURCHASED) {
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Box(
+                            modifier = Modifier
+                                .background(FundoryGreen.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = product.purchaseStatus.displayName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = FundoryGreen,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    if (product.alternativeGroupId != null) {
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = if (product.isSelectedAlternative) "• Active Choice" else "• Alternative Option",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (product.isSelectedAlternative) FundoryGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     if (product.description.isNotBlank()) {
                         Text(
                             text = product.description,

@@ -5,6 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.fundory.app.domain.model.Product
+import com.fundory.app.domain.model.PurchaseStatus
 import java.math.BigDecimal
 
 @Entity(
@@ -14,15 +15,19 @@ import java.math.BigDecimal
             entity = GoalEntity::class,
             parentColumns = ["id"],
             childColumns = ["goalId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.SET_NULL
         )
     ],
-    indices = [Index(value = ["goalId"])]
+    indices = [
+        Index(value = ["goalId"]),
+        Index(value = ["alternativeGroupId"]),
+        Index(value = ["parcelId"])
+    ]
 )
 data class ProductEntity(
     @PrimaryKey
     val id: String,
-    val goalId: String,
+    val goalId: String?,
     val name: String,
     val description: String,
     val originalPrice: BigDecimal,
@@ -37,7 +42,19 @@ data class ProductEntity(
     val manualOverrideGel: BigDecimal?,
     val sortOrder: Int,
     val dateAddedEpochMillis: Long,
-    val lastEditedEpochMillis: Long
+    val lastEditedEpochMillis: Long,
+    val purchaseStatus: String = PurchaseStatus.NOT_PURCHASED.name,
+    val actualPrice: BigDecimal? = null,
+    val actualPriceCurrency: String? = null,
+    val shippingCarrier: String? = null,
+    val trackingNumber: String? = null,
+    val expectedDeliveryDate: String? = null,
+    val actualDeliveryDate: String? = null,
+    val trackingNotes: String? = null,
+    val alternativeGroupId: String? = null,
+    val isSelectedAlternative: Boolean = true,
+    val parcelId: String? = null,
+    val marketplace: String? = null
 ) {
     fun toDomain(): Product = Product(
         id = id,
@@ -56,7 +73,23 @@ data class ProductEntity(
         manualOverrideGel = manualOverrideGel,
         sortOrder = sortOrder,
         dateAddedEpochMillis = dateAddedEpochMillis,
-        lastEditedEpochMillis = lastEditedEpochMillis
+        lastEditedEpochMillis = lastEditedEpochMillis,
+        purchaseStatus = try {
+            PurchaseStatus.valueOf(purchaseStatus)
+        } catch (_: Exception) {
+            PurchaseStatus.NOT_PURCHASED
+        },
+        actualPrice = actualPrice,
+        actualPriceCurrency = actualPriceCurrency,
+        shippingCarrier = shippingCarrier,
+        trackingNumber = trackingNumber,
+        expectedDeliveryDate = expectedDeliveryDate,
+        actualDeliveryDate = actualDeliveryDate,
+        trackingNotes = trackingNotes,
+        alternativeGroupId = alternativeGroupId,
+        isSelectedAlternative = isSelectedAlternative,
+        parcelId = parcelId,
+        marketplace = marketplace
     )
 
     companion object {
@@ -77,8 +110,19 @@ data class ProductEntity(
             manualOverrideGel = product.manualOverrideGel,
             sortOrder = product.sortOrder,
             dateAddedEpochMillis = product.dateAddedEpochMillis,
-            lastEditedEpochMillis = product.lastEditedEpochMillis
+            lastEditedEpochMillis = product.lastEditedEpochMillis,
+            purchaseStatus = product.purchaseStatus.name,
+            actualPrice = product.actualPrice,
+            actualPriceCurrency = product.actualPriceCurrency,
+            shippingCarrier = product.shippingCarrier,
+            trackingNumber = product.trackingNumber,
+            expectedDeliveryDate = product.expectedDeliveryDate,
+            actualDeliveryDate = product.actualDeliveryDate,
+            trackingNotes = product.trackingNotes,
+            alternativeGroupId = product.alternativeGroupId,
+            isSelectedAlternative = product.isSelectedAlternative,
+            parcelId = product.parcelId,
+            marketplace = product.marketplace
         )
     }
 }
-

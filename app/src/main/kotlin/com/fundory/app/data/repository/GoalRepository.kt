@@ -139,7 +139,9 @@ class GoalRepository @Inject constructor(
 
         var totalGel = BigDecimal.ZERO
         for (prod in products) {
-            totalGel = totalGel.add(prod.calculateTotalGel(rates))
+            if (prod.isSelectedAlternative) {
+                totalGel = totalGel.add(prod.calculateTotalGel(rates))
+            }
         }
 
         val updated = goal.copy(

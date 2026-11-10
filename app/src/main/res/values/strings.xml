@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Fundory</string>
+    <string name="quick_add">Quick Add</string>
+    <string name="quick_add_savings">Add Money to Savings</string>
 </resources>

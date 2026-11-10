@@ -152,6 +152,22 @@ fun AnalyticsScreen(
                 }
             }
 
+            // FEATURE: What-If Savings Scenario Simulator
+            item {
+                SavingsSimulatorView(
+                    goals = state.activeGoals,
+                    totalSavedGel = state.totalSavedGel,
+                    totalTargetGel = state.totalTargetGel
+                )
+            }
+
+            // FEATURE: Savings Activity Calendar
+            item {
+                SavingsCalendarView(
+                    transactions = state.allTransactions
+                )
+            }
+
             // Bottom space
             item {
                 Spacer(modifier = Modifier.height(24.dp))

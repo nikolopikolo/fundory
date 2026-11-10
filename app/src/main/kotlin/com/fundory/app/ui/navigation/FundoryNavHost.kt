@@ -21,6 +21,7 @@ import com.fundory.app.ui.goals.ShippingCalculatorScreen
 import com.fundory.app.ui.onboarding.OnboardingScreen
 import com.fundory.app.ui.settings.SettingsScreen
 import com.fundory.app.ui.transactions.TransactionsScreen
+import com.fundory.app.ui.wishlist.WishlistScreen
 
 @Composable
 fun FundoryNavHost(
@@ -80,6 +81,9 @@ fun FundoryNavHost(
                     },
                     onNavigateToAnalytics = {
                         navController.navigate(Screen.Analytics.route)
+                    },
+                    onNavigateToWishlist = {
+                        navController.navigate(Screen.Wishlist.route)
                     }
                 )
             }
@@ -94,6 +98,9 @@ fun FundoryNavHost(
                     },
                     onNavigateToEditGoal = { goalId ->
                         navController.navigate(Screen.AddEditGoal.createRoute(goalId))
+                    },
+                    onNavigateToWishlist = {
+                        navController.navigate(Screen.Wishlist.route)
                     }
                 )
             }
@@ -195,6 +202,15 @@ fun FundoryNavHost(
             ) {
                 TransactionsScreen(
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.Wishlist.route) {
+                WishlistScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToEditProduct = { productId ->
+                        // edit
+                    }
                 )
             }
         }

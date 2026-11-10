@@ -6,6 +6,8 @@ import com.fundory.app.data.local.FundoryDatabase
 import com.fundory.app.data.local.dao.ExchangeRateDao
 import com.fundory.app.data.local.dao.GoalDao
 import com.fundory.app.data.local.dao.GoalSnapshotDao
+import com.fundory.app.data.local.dao.ParcelDao
+import com.fundory.app.data.local.dao.PriceHistoryDao
 import com.fundory.app.data.local.dao.ProductDao
 import com.fundory.app.data.local.dao.TransactionDao
 import dagger.Module
@@ -29,7 +31,7 @@ object DatabaseModule {
             FundoryDatabase::class.java,
             FundoryDatabase.DATABASE_NAME
         )
-            .addMigrations(FundoryDatabase.MIGRATION_1_2)
+            .addMigrations(FundoryDatabase.MIGRATION_1_2, FundoryDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration(false)
             .build()
     }
@@ -48,4 +50,10 @@ object DatabaseModule {
 
     @Provides
     fun provideGoalSnapshotDao(db: FundoryDatabase): GoalSnapshotDao = db.goalSnapshotDao()
+
+    @Provides
+    fun providePriceHistoryDao(db: FundoryDatabase): PriceHistoryDao = db.priceHistoryDao()
+
+    @Provides
+    fun provideParcelDao(db: FundoryDatabase): ParcelDao = db.parcelDao()
 }

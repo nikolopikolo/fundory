@@ -11,13 +11,15 @@ import java.util.Locale
 
 @Serializable
 data class FundoryBackup(
-    @SerialName("version") val version: Int = 1,
+    @SerialName("version") val version: Int = 2,
     @SerialName("exportDateEpochMillis") val exportDateEpochMillis: Long = System.currentTimeMillis(),
     @SerialName("appName") val appName: String = "Fundory",
     @SerialName("goals") val goals: List<BackupGoal> = emptyList(),
     @SerialName("products") val products: List<BackupProduct> = emptyList(),
     @SerialName("transactions") val transactions: List<BackupTransaction> = emptyList(),
-    @SerialName("snapshots") val snapshots: List<BackupSnapshot> = emptyList()
+    @SerialName("snapshots") val snapshots: List<BackupSnapshot> = emptyList(),
+    @SerialName("priceHistory") val priceHistory: List<BackupPriceHistory> = emptyList(),
+    @SerialName("parcels") val parcels: List<BackupParcel> = emptyList()
 )
 
 @Serializable
@@ -42,7 +44,7 @@ data class BackupGoal(
 @Serializable
 data class BackupProduct(
     val id: String,
-    val goalId: String,
+    val goalId: String? = null,
     val name: String,
     val description: String = "",
     val originalPrice: String,
@@ -57,7 +59,19 @@ data class BackupProduct(
     val manualOverrideGel: String? = null,
     val sortOrder: Int = 0,
     val dateAddedEpochMillis: Long,
-    val lastEditedEpochMillis: Long
+    val lastEditedEpochMillis: Long,
+    val purchaseStatus: String = "NOT_PURCHASED",
+    val actualPrice: String? = null,
+    val actualPriceCurrency: String? = null,
+    val shippingCarrier: String? = null,
+    val trackingNumber: String? = null,
+    val expectedDeliveryDate: String? = null,
+    val actualDeliveryDate: String? = null,
+    val trackingNotes: String? = null,
+    val alternativeGroupId: String? = null,
+    val isSelectedAlternative: Boolean = true,
+    val parcelId: String? = null,
+    val marketplace: String? = null
 )
 
 @Serializable
@@ -78,6 +92,33 @@ data class BackupSnapshot(
     val savedAmountGel: String,
     val targetAmountGel: String,
     val completionPercentage: Float
+)
+
+@Serializable
+data class BackupPriceHistory(
+    val id: String,
+    val productId: String,
+    val price: String,
+    val currency: String,
+    val recordedAtEpochMillis: Long,
+    val note: String? = null
+)
+
+@Serializable
+data class BackupParcel(
+    val id: String,
+    val goalId: String? = null,
+    val name: String,
+    val carrier: String,
+    val method: String,
+    val weightKg: Double,
+    val lengthCm: Double? = null,
+    val widthCm: Double? = null,
+    val heightCm: Double? = null,
+    val shippingCostGel: String,
+    val isConfirmed: Boolean = false,
+    val trackingNumber: String? = null,
+    val createdAtEpochMillis: Long
 )
 
 data class BackupValidationResult(
@@ -105,26 +146,28 @@ object BackupValidator {
                 )
             }
 
-            // Verify integrity: every product and transaction must reference a valid goal in the backup
+            // Verify integrity: non-null goalId must reference a valid goal in the backup
             val goalIds = backup.goals.map { it.id }.toSet()
-            val orphanProducts = backup.products.filter { it.goalId !in goalIds }
+            val orphanProducts = backup.products.filter { it.goalId != null && it.goalId !in goalIds }
             val orphanTransactions = backup.transactions.filter { it.goalId != null && it.goalId !in goalIds }
 
             if (orphanProducts.isNotEmpty() || orphanTransactions.isNotEmpty()) {
                 return BackupValidationResult(
                     isValid = false,
-                    errorMessage = "Data integrity error: file contains orphaned items or transactions without a parent goal."
+                    errorMessage = "Integrity check failed: file contains orphaned items (${orphanProducts.size} product(s), ${orphanTransactions.size} transaction(s) reference non-existent goals)."
                 )
             }
 
-            val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.US)
+            val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            val formattedDate = formatter.format(Date(backup.exportDateEpochMillis))
+
             BackupValidationResult(
                 isValid = true,
                 goalCount = backup.goals.size,
                 productCount = backup.products.size,
                 transactionCount = backup.transactions.size,
                 snapshotCount = backup.snapshots.size,
-                exportDateFormatted = dateFormat.format(Date(backup.exportDateEpochMillis)),
+                exportDateFormatted = formattedDate,
                 backupData = backup
             )
         } catch (e: Exception) {

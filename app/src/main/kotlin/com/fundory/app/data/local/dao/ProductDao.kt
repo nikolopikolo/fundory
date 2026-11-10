@@ -17,6 +17,21 @@ interface ProductDao {
     @Query("SELECT * FROM products WHERE goalId = :goalId ORDER BY sortOrder ASC, dateAddedEpochMillis ASC")
     suspend fun getProductsByGoal(goalId: String): List<ProductEntity>
 
+    @Query("SELECT * FROM products WHERE goalId IS NULL ORDER BY dateAddedEpochMillis DESC")
+    fun getWishlistProductsFlow(): Flow<List<ProductEntity>>
+
+    @Query("SELECT * FROM products WHERE goalId IS NULL ORDER BY dateAddedEpochMillis DESC")
+    suspend fun getWishlistProducts(): List<ProductEntity>
+
+    @Query("SELECT * FROM products WHERE purchaseStatus != 'NOT_PURCHASED' ORDER BY dateAddedEpochMillis DESC")
+    fun getTrackingProductsFlow(): Flow<List<ProductEntity>>
+
+    @Query("SELECT * FROM products WHERE alternativeGroupId = :groupId ORDER BY sortOrder ASC, dateAddedEpochMillis ASC")
+    fun getAlternativesFlow(groupId: String): Flow<List<ProductEntity>>
+
+    @Query("SELECT * FROM products WHERE parcelId = :parcelId ORDER BY sortOrder ASC")
+    fun getProductsByParcelFlow(parcelId: String): Flow<List<ProductEntity>>
+
     @Query("SELECT * FROM products ORDER BY dateAddedEpochMillis ASC")
     fun getAllProductsFlow(): Flow<List<ProductEntity>>
 
@@ -44,4 +59,3 @@ interface ProductDao {
     @Query("DELETE FROM products")
     suspend fun deleteAllProducts()
 }
-

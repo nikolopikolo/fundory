@@ -5,7 +5,7 @@ import java.math.RoundingMode
 
 data class Product(
     val id: String,
-    val goalId: String,
+    val goalId: String? = null,
     val name: String,
     val description: String = "",
     val originalPrice: BigDecimal,
@@ -20,7 +20,19 @@ data class Product(
     val manualOverrideGel: BigDecimal? = null,
     val sortOrder: Int = 0,
     val dateAddedEpochMillis: Long = System.currentTimeMillis(),
-    val lastEditedEpochMillis: Long = System.currentTimeMillis()
+    val lastEditedEpochMillis: Long = System.currentTimeMillis(),
+    val purchaseStatus: PurchaseStatus = PurchaseStatus.NOT_PURCHASED,
+    val actualPrice: BigDecimal? = null,
+    val actualPriceCurrency: String? = null,
+    val shippingCarrier: String? = null,
+    val trackingNumber: String? = null,
+    val expectedDeliveryDate: String? = null,
+    val actualDeliveryDate: String? = null,
+    val trackingNotes: String? = null,
+    val alternativeGroupId: String? = null,
+    val isSelectedAlternative: Boolean = true,
+    val parcelId: String? = null,
+    val marketplace: String? = null
 ) {
     val isManuallyOverridden: Boolean
         get() = manualOverrideGel != null

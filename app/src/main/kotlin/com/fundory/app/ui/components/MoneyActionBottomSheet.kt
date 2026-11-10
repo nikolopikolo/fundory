@@ -60,6 +60,7 @@ fun MoneyActionBottomSheet(
     goals: List<Goal>,
     generalSavingsBalance: BigDecimal = BigDecimal.ZERO,
     selectedGoalId: String? = null,
+    initialAmount: String = "",
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     onDismiss: () -> Unit,
     onSubmit: (goalId: String?, amount: BigDecimal, note: String?) -> Unit
@@ -80,7 +81,7 @@ fun MoneyActionBottomSheet(
         )
     }
 
-    var amountText by remember { mutableStateOf("") }
+    var amountText by remember(initialAmount) { mutableStateOf(initialAmount) }
     var noteText by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isGoalDropdownExpanded by remember { mutableStateOf(false) }

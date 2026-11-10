@@ -344,6 +344,64 @@ fun ShippingCalculatorScreen(
                                 shape = RoundedCornerShape(12.dp)
                             )
                         }
+
+                        // China to Georgia Carrier Comparison
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "China to Georgia Carriers:",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = FundoryGreen
+                        )
+
+                        val carrierRates = listOf(
+                            Triple("Boxette Air", "12.90", "7-12 days"),
+                            Triple("Boxette Ground", "5.45", "25-35 days"),
+                            Triple("Inex Air", "10.50", "8-14 days"),
+                            Triple("Inex Sea", "4.50", "30-45 days")
+                        )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            val usdRate = rates["USD"] ?: BigDecimal("2.70")
+                            val weight = weightKgText.toDoubleOrNull() ?: 1.0
+
+                            carrierRates.forEach { (carrier, rateStr, eta) ->
+                                val rateVal = BigDecimal(rateStr)
+                                val costUsd = rateVal.multiply(BigDecimal(weight)).setScale(2, RoundingMode.HALF_UP)
+                                val costGel = costUsd.multiply(usdRate).setScale(2, RoundingMode.HALF_UP)
+                                val isSelected = ratePerKgText == rateStr
+
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            ratePerKgText = rateStr
+                                            manualShippingCostText = ""
+                                        },
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isSelected) FundoryGreen.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(carrier, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                            Text("$$rateStr/kg • $eta", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text("${Currencies.format(costGel, "GEL")}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = FundoryGreen)
+                                            Text("$$costUsd", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

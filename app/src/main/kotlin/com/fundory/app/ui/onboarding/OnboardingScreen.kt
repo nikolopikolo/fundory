@@ -1,6 +1,7 @@
 package com.fundory.app.ui.onboarding
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,12 +43,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fundory.app.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fundory.app.domain.model.Currencies
 import com.fundory.app.ui.theme.FundoryGreen
@@ -80,19 +84,13 @@ fun OnboardingScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Logo & Welcome
-            Box(
+            Image(
+                painter = painterResource(id = R.drawable.ic_fundory_logo),
+                contentDescription = "Fundory Emblem",
                 modifier = Modifier
-                    .size(72.dp)
-                    .background(FundoryGreen.copy(alpha = 0.15f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "₾",
-                    fontSize = 40.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = FundoryGreen
-                )
-            }
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(20.dp))
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 

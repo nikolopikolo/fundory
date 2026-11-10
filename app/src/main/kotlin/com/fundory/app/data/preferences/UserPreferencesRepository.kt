@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -26,12 +27,18 @@ data class UserPreferences(
     val lastExchangeRatesSyncMillis: Long = 0L,
     val enableMilestoneNotifications: Boolean = true,
     val enableMonthlyReminderNotifications: Boolean = true,
-    val hasCompletedOnboarding: Boolean = false
+    val hasCompletedOnboarding: Boolean = false,
+    val boxetteAirRateUsd: Double = 12.90,
+    val boxetteGroundRateUsd: Double = 5.45,
+    val inexAirRateUsd: Double = 10.50,
+    val inexSeaRateUsd: Double = 4.50,
+    val quickAddAmounts: List<Int> = listOf(10, 20, 50, 100),
+    val widgetGoalId: String? = null
 )
 
 @Singleton
 class UserPreferencesRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
 
     private object Keys {
@@ -44,9 +51,20 @@ class UserPreferencesRepository @Inject constructor(
         val ENABLE_MILESTONE_NOTIFICATIONS = booleanPreferencesKey("enable_milestone_notifications")
         val ENABLE_MONTHLY_REMINDER_NOTIFICATIONS = booleanPreferencesKey("enable_monthly_reminder_notifications")
         val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
+        val BOXETTE_AIR_RATE = doublePreferencesKey("boxette_air_rate")
+        val BOXETTE_GROUND_RATE = doublePreferencesKey("boxette_ground_rate")
+        val INEX_AIR_RATE = doublePreferencesKey("inex_air_rate")
+        val INEX_SEA_RATE = doublePreferencesKey("inex_sea_rate")
+        val QUICK_ADD_AMOUNTS = stringPreferencesKey("quick_add_amounts")
+        val WIDGET_GOAL_ID = stringPreferencesKey("widget_goal_id")
     }
 
     val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
+        val quickAmountsStr = prefs[Keys.QUICK_ADD_AMOUNTS] ?: "10,20,50,100"
+        val parsedQuickAmounts = quickAmountsStr.split(",")
+            .mapNotNull { it.trim().toIntOrNull() }
+            .ifEmpty { listOf(10, 20, 50, 100) }
+
         UserPreferences(
             isDarkMode = prefs[Keys.IS_DARK_MODE] ?: true,
             useDynamicColors = prefs[Keys.USE_DYNAMIC_COLORS] ?: false,
@@ -56,7 +74,13 @@ class UserPreferencesRepository @Inject constructor(
             lastExchangeRatesSyncMillis = prefs[Keys.LAST_SYNC_MILLIS] ?: 0L,
             enableMilestoneNotifications = prefs[Keys.ENABLE_MILESTONE_NOTIFICATIONS] ?: true,
             enableMonthlyReminderNotifications = prefs[Keys.ENABLE_MONTHLY_REMINDER_NOTIFICATIONS] ?: true,
-            hasCompletedOnboarding = prefs[Keys.HAS_COMPLETED_ONBOARDING] ?: false
+            hasCompletedOnboarding = prefs[Keys.HAS_COMPLETED_ONBOARDING] ?: false,
+            boxetteAirRateUsd = prefs[Keys.BOXETTE_AIR_RATE] ?: 12.90,
+            boxetteGroundRateUsd = prefs[Keys.BOXETTE_GROUND_RATE] ?: 5.45,
+            inexAirRateUsd = prefs[Keys.INEX_AIR_RATE] ?: 10.50,
+            inexSeaRateUsd = prefs[Keys.INEX_SEA_RATE] ?: 4.50,
+            quickAddAmounts = parsedQuickAmounts,
+            widgetGoalId = prefs[Keys.WIDGET_GOAL_ID]
         )
     }
 
@@ -101,5 +125,29 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setHasCompletedOnboarding(completed: Boolean) {
         context.dataStore.edit { it[Keys.HAS_COMPLETED_ONBOARDING] = completed }
     }
-}
 
+    suspend fun setCarrierRates(boxetteAir: Double, boxetteGround: Double, inexAir: Double, inexSea: Double) {
+        context.dataStore.edit {
+            it[Keys.BOXETTE_AIR_RATE] = boxetteAir
+            it[Keys.BOXETTE_GROUND_RATE] = boxetteGround
+            it[Keys.INEX_AIR_RATE] = inexAir
+            it[Keys.INEX_SEA_RATE] = inexSea
+        }
+    }
+
+    suspend fun setQuickAddAmounts(amounts: List<Int>) {
+        context.dataStore.edit {
+            it[Keys.QUICK_ADD_AMOUNTS] = amounts.joinToString(",")
+        }
+    }
+
+    suspend fun setWidgetGoalId(goalId: String?) {
+        context.dataStore.edit {
+            if (goalId != null) {
+                it[Keys.WIDGET_GOAL_ID] = goalId
+            } else {
+                it.remove(Keys.WIDGET_GOAL_ID)
+            }
+        }
+    }
+}

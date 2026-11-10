@@ -101,6 +101,14 @@ fun GoalProgressHistoryChart(
         } else {
             val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
 
+            val normalizedSnapshots = remember(snapshots) {
+                snapshots.mapIndexed { idx, snap ->
+                    val xNorm = if (snapshots.size > 1) idx.toFloat() / (snapshots.size - 1) else 0.5f
+                    val yNorm = snap.completionPercentage.coerceIn(0f, 100f) / 100f
+                    xNorm to yNorm
+                }
+            }
+
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -126,14 +134,9 @@ fun GoalProgressHistoryChart(
                 }
 
                 // Map coordinates
-                val coords = snapshots.mapIndexed { idx, snap ->
-                    val x = if (snapshots.size > 1) {
-                        (idx.toFloat() / (snapshots.size - 1)) * width
-                    } else {
-                        width / 2f
-                    }
-                    val pctNorm = (snap.completionPercentage.coerceIn(0f, 100f) / 100f) * animProgress.value
-                    val y = paddingTop + usableHeight * (1f - pctNorm)
+                val coords = normalizedSnapshots.map { (xNorm, yNorm) ->
+                    val x = xNorm * width
+                    val y = paddingTop + usableHeight * (1f - (yNorm * animProgress.value))
                     Offset(x, y)
                 }
 

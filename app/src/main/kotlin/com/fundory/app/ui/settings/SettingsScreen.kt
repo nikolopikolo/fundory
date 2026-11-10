@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -60,8 +61,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -306,19 +309,96 @@ fun SettingsScreen(
                 )
             }
 
+            // China to Georgia Shipping Rates Section
+            SettingsSection(title = "SHIPPING RATES (CHINA TO GEORGIA)") {
+                var boxetteAirText by remember(state.preferences.boxetteAirRateUsd) { mutableStateOf(state.preferences.boxetteAirRateUsd.toString()) }
+                var boxetteGroundText by remember(state.preferences.boxetteGroundRateUsd) { mutableStateOf(state.preferences.boxetteGroundRateUsd.toString()) }
+                var inexAirText by remember(state.preferences.inexAirRateUsd) { mutableStateOf(state.preferences.inexAirRateUsd.toString()) }
+                var inexSeaText by remember(state.preferences.inexSeaRateUsd) { mutableStateOf(state.preferences.inexSeaRateUsd.toString()) }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        androidx.compose.material3.OutlinedTextField(
+                            value = boxetteAirText,
+                            onValueChange = { boxetteAirText = it },
+                            label = { Text("Boxette Air ($/kg)") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        androidx.compose.material3.OutlinedTextField(
+                            value = boxetteGroundText,
+                            onValueChange = { boxetteGroundText = it },
+                            label = { Text("Boxette Grnd ($/kg)") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        androidx.compose.material3.OutlinedTextField(
+                            value = inexAirText,
+                            onValueChange = { inexAirText = it },
+                            label = { Text("Inex Air ($/kg)") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        androidx.compose.material3.OutlinedTextField(
+                            value = inexSeaText,
+                            onValueChange = { inexSeaText = it },
+                            label = { Text("Inex Sea ($/kg)") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            val bAir = boxetteAirText.toDoubleOrNull() ?: 12.90
+                            val bGnd = boxetteGroundText.toDoubleOrNull() ?: 5.45
+                            val iAir = inexAirText.toDoubleOrNull() ?: 10.50
+                            val iSea = inexSeaText.toDoubleOrNull() ?: 4.50
+                            viewModel.updateCarrierRates(bAir, bGnd, iAir, iSea)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = FundoryGreen),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Save Carrier Rates")
+                    }
+                }
+            }
+
             // About Fundory
             SettingsSection(title = "ABOUT") {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = "Fundory Native Android",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Version 1.0.0 · Local-First Architecture",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = com.fundory.app.R.drawable.ic_fundory_logo),
+                            contentDescription = "Fundory Emblem",
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Fundory Native Android",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Version 1.1.0 · Local-First Architecture",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     Text(
                         text = "Fundory operates completely offline with zero tracking, advertising, or third-party user accounts. All personal savings data remains exclusively on your device.",
                         style = MaterialTheme.typography.bodySmall,

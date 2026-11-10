@@ -200,6 +200,20 @@ class GoalsViewModel @Inject constructor(
         }
     }
 
+    val generalSavingsBalanceFlow = transactionRepository.generalSavingsBalanceFlow
+
+    fun transferFunds(fromGoalId: String?, toGoalId: String?, amount: BigDecimal, note: String?) {
+        viewModelScope.launch {
+            transactionRepository.transferFunds(fromGoalId, toGoalId, amount, note)
+        }
+    }
+
+    fun selectAlternative(groupId: String, selectedProductId: String) {
+        viewModelScope.launch {
+            productRepository.selectAlternative(groupId, selectedProductId)
+        }
+    }
+
     fun calculateImportCost(
         subtotalGel: BigDecimal,
         config: ImportCalculationConfig,

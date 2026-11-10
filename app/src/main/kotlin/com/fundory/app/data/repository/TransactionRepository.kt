@@ -1,5 +1,6 @@
 package com.fundory.app.data.repository
 
+import android.content.Context
 import androidx.room.withTransaction
 import com.fundory.app.data.local.FundoryDatabase
 import com.fundory.app.data.local.dao.GoalDao
@@ -9,6 +10,8 @@ import com.fundory.app.data.local.entity.GoalSnapshotEntity
 import com.fundory.app.data.local.entity.TransactionEntity
 import com.fundory.app.domain.model.Transaction
 import com.fundory.app.domain.model.TransactionType
+import com.fundory.app.widget.FundoryWidgetProvider
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -28,7 +31,8 @@ class TransactionRepository @Inject constructor(
     private val database: FundoryDatabase,
     private val transactionDao: TransactionDao,
     private val goalDao: GoalDao,
-    private val goalSnapshotDao: GoalSnapshotDao
+    private val goalSnapshotDao: GoalSnapshotDao,
+    @param:ApplicationContext private val context: Context
 ) {
 
     val allTransactionsWithGoalsFlow: Flow<List<Transaction>> = combine(
@@ -251,6 +255,67 @@ class TransactionRepository @Inject constructor(
         }
     }
 
+    suspend fun transferFunds(
+        fromGoalId: String?,
+        toGoalId: String?,
+        amountGel: BigDecimal,
+        note: String? = null
+    ): TransactionResult {
+        if (amountGel <= BigDecimal.ZERO) {
+            return TransactionResult.Failure("Transfer amount must be greater than zero.")
+        }
+        if (fromGoalId == toGoalId) {
+            return TransactionResult.Failure("Source and destination must be different.")
+        }
+
+        return database.withTransaction {
+            val currentSourceBalance: BigDecimal = if (fromGoalId != null) {
+                goalDao.getGoalById(fromGoalId)?.savedAmountGel ?: BigDecimal.ZERO
+            } else {
+                val generalTxs = transactionDao.getGeneralSavingsTransactionsAscending()
+                generalTxs.fold(BigDecimal.ZERO) { acc, tx -> acc.add(tx.toDomain().signedAmountGel) }
+            }
+
+            if (currentSourceBalance < amountGel) {
+                return@withTransaction TransactionResult.Failure("Insufficient funds in source for transfer. Available: $currentSourceBalance GEL")
+            }
+
+            val withdrawalTx = Transaction(
+                id = UUID.randomUUID().toString(),
+                goalId = fromGoalId,
+                targetGoalId = toGoalId,
+                type = TransactionType.TRANSFER,
+                amountGel = amountGel,
+                timestampEpochMillis = System.currentTimeMillis(),
+                note = note ?: "Transfer"
+            )
+            transactionDao.insertTransaction(TransactionEntity.fromDomain(withdrawalTx))
+            if (fromGoalId != null) {
+                recalculateGoalBalanceInternal(fromGoalId)
+            }
+
+            val depositTx = Transaction(
+                id = UUID.randomUUID().toString(),
+                goalId = toGoalId,
+                targetGoalId = fromGoalId,
+                type = TransactionType.DEPOSIT,
+                amountGel = amountGel,
+                timestampEpochMillis = System.currentTimeMillis() + 1,
+                note = note ?: "Transfer from ${fromGoalId ?: "General Savings"}"
+            )
+            transactionDao.insertTransaction(TransactionEntity.fromDomain(depositTx))
+            if (toGoalId != null) {
+                recalculateGoalBalanceInternal(toGoalId)
+            }
+
+            try {
+                FundoryWidgetProvider.updateAllWidgets(context)
+            } catch (_: Exception) {}
+
+            TransactionResult.Success
+        }
+    }
+
     suspend fun deleteTransaction(transactionId: String): TransactionResult {
         return database.withTransaction {
             val tx = transactionDao.getTransactionById(transactionId)
@@ -290,6 +355,9 @@ class TransactionRepository @Inject constructor(
                     throw IllegalStateException("Transaction caused negative balance: $recalculated")
                 }
             }
+            try {
+                FundoryWidgetProvider.updateAllWidgets(context)
+            } catch (_: Exception) {}
             TransactionResult.Success
         }
     }

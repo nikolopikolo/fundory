@@ -137,6 +137,26 @@ fun SavingsProjectionChart(
         val projColor = ProjectionDashedGold
         val targetLineColor = TargetLineCyan
 
+        val maxVal = remember(targetAmount, projection.timeline, historicalPoints) {
+            maxOf(
+                targetAmount.multiply(BigDecimal("1.15")).toFloat(),
+                projection.timeline.maxOfOrNull { it.balanceGel }?.toFloat() ?: 100f,
+                historicalPoints.maxOfOrNull { it.balanceGel }?.toFloat() ?: 100f
+            ).coerceAtLeast(50f)
+        }
+
+        val totalSteps = remember(historicalPoints, projection.timeline) {
+            (historicalPoints.size + projection.timeline.size).coerceAtLeast(2)
+        }
+
+        val histNormalized = remember(historicalPoints, maxVal, totalSteps) {
+            historicalPoints.mapIndexed { i, p ->
+                val xNorm = i.toFloat() / (totalSteps - 1)
+                val yNorm = (p.balanceGel.toFloat() / maxVal).coerceIn(0f, 1f)
+                xNorm to yNorm
+            }
+        }
+
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -147,12 +167,6 @@ fun SavingsProjectionChart(
             val paddingTop = 20.dp.toPx()
             val paddingBottom = 20.dp.toPx()
             val usableHeight = height - paddingTop - paddingBottom
-
-            val maxVal = maxOf(
-                targetAmount.multiply(BigDecimal("1.15")).toFloat(),
-                projection.timeline.maxOfOrNull { it.balanceGel }?.toFloat() ?: 100f,
-                historicalPoints.maxOfOrNull { it.balanceGel }?.toFloat() ?: 100f
-            ).coerceAtLeast(50f)
 
             // 1. Draw Target Reference Line (Horizontal dashed cyan)
             val targetNorm = (targetAmount.toFloat() / maxVal).coerceIn(0f, 1f)
@@ -166,16 +180,12 @@ fun SavingsProjectionChart(
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f))
             )
 
-            // Timeline points
-            val totalSteps = (historicalPoints.size + projection.timeline.size).coerceAtLeast(2)
             val histCount = historicalPoints.size
-            val projCount = projection.timeline.size
 
             // Historical Points (Solid line)
-            if (historicalPoints.isNotEmpty()) {
-                val histCoords = historicalPoints.mapIndexed { i, p ->
-                    val x = (i.toFloat() / (totalSteps - 1)) * width
-                    val yNorm = (p.balanceGel.toFloat() / maxVal).coerceIn(0f, 1f)
+            if (histNormalized.isNotEmpty()) {
+                val histCoords = histNormalized.map { (xNorm, yNorm) ->
+                    val x = xNorm * width
                     val y = paddingTop + usableHeight * (1f - yNorm)
                     Offset(x, y)
                 }

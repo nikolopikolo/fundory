@@ -40,7 +40,10 @@ data class AnalyticsUiState(
     val projectionResult: GoalProjectionResult? = null,
     val productsBreakdown: List<Product> = emptyList(),
     val ratesToGel: Map<String, BigDecimal> = emptyMap(),
-    val snapshots: List<GoalSnapshotEntity> = emptyList()
+    val snapshots: List<GoalSnapshotEntity> = emptyList(),
+    val allTransactions: List<Transaction> = emptyList(),
+    val totalSavedGel: BigDecimal = BigDecimal.ZERO,
+    val totalTargetGel: BigDecimal = BigDecimal.ZERO
 )
 
 data class FilterParams(
@@ -103,6 +106,18 @@ class AnalyticsViewModel @Inject constructor(
             goals.flatMap { it.products }
         }
 
+        val totalSaved = if (goalId != null) {
+            goals.find { it.id == goalId }?.savedAmountGel ?: BigDecimal.ZERO
+        } else {
+            goals.fold(BigDecimal.ZERO) { acc, g -> acc.add(g.savedAmountGel) }
+        }
+
+        val totalTarget = if (goalId != null) {
+            goals.find { it.id == goalId }?.targetAmountGel ?: BigDecimal.ZERO
+        } else {
+            goals.fold(BigDecimal.ZERO) { acc, g -> acc.add(g.targetAmountGel) }
+        }
+
         AnalyticsUiState(
             activeGoals = goals,
             selectedGoalId = goalId,
@@ -112,7 +127,10 @@ class AnalyticsViewModel @Inject constructor(
             monthlySavingsData = monthlyData,
             projectionResult = projection,
             productsBreakdown = products,
-            ratesToGel = rates
+            ratesToGel = rates,
+            allTransactions = relevantTransactions,
+            totalSavedGel = totalSaved,
+            totalTargetGel = totalTarget
         )
     }.stateIn(
         scope = viewModelScope,

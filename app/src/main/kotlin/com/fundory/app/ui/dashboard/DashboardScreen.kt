@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,10 +30,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -63,15 +66,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.fundory.app.R
 import com.fundory.app.domain.model.Currencies
 import com.fundory.app.domain.model.Goal
 import com.fundory.app.ui.components.AnimatedProgressBar
 import com.fundory.app.ui.components.MoneyActionBottomSheet
+import com.fundory.app.ui.components.TransferFundsBottomSheet
 import com.fundory.app.ui.theme.FundoryGreen
 import com.fundory.app.ui.theme.FundoryGreenLight
 import com.fundory.app.ui.theme.NegativeRed
@@ -86,6 +92,7 @@ fun DashboardScreen(
     onNavigateToAddGoal: () -> Unit,
     onNavigateToTransactions: () -> Unit,
     onNavigateToAnalytics: () -> Unit,
+    onNavigateToWishlist: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -93,6 +100,8 @@ fun DashboardScreen(
 
     var isMoneySheetOpen by remember { mutableStateOf(false) }
     var isDepositAction by remember { mutableStateOf(true) }
+    var isTransferSheetOpen by remember { mutableStateOf(false) }
+    var prefilledAmount by remember { mutableStateOf("") }
 
     LaunchedEffect(state.syncMessage) {
         state.syncMessage?.let {
@@ -106,19 +115,13 @@ fun DashboardScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_fundory_logo),
+                            contentDescription = "Fundory Emblem",
                             modifier = Modifier
                                 .size(34.dp)
-                                .background(FundoryGreen.copy(alpha = 0.2f), RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "₾",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = FundoryGreen
-                            )
-                        }
+                                .clip(RoundedCornerShape(8.dp))
+                        )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
@@ -135,6 +138,14 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToWishlist) {
+                        Icon(
+                            imageVector = Icons.Default.FavoriteBorder,
+                            contentDescription = "Wishlist",
+                            tint = FundoryGreen
+                        )
+                    }
+
                     val infiniteTransition = rememberInfiniteTransition(label = "Spin")
                     val angle by infiniteTransition.animateFloat(
                         initialValue = 0f,
@@ -220,6 +231,38 @@ fun DashboardScreen(
                 )
             }
 
+            // Quick Add Preset Chips & Transfer Shortcut
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val presets = listOf(10, 20, 50, 100)
+                    presets.forEach { amt ->
+                        FilterChip(
+                            selected = false,
+                            onClick = {
+                                isDepositAction = true
+                                prefilledAmount = amt.toString()
+                                isMoneySheetOpen = true
+                            },
+                            label = { Text("+$amt ₾", fontWeight = FontWeight.Bold) },
+                            colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    FilterChip(
+                        selected = false,
+                        onClick = { isTransferSheetOpen = true },
+                        label = { Text("Transfer ⇄", color = FundoryGreen, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(containerColor = FundoryGreen.copy(alpha = 0.12f))
+                    )
+                }
+            }
+
             // Two Prominent Actions (+ Add Money, − Withdraw Money)
             item {
                 Row(
@@ -229,6 +272,7 @@ fun DashboardScreen(
                     Button(
                         onClick = {
                             isDepositAction = true
+                            prefilledAmount = ""
                             isMoneySheetOpen = true
                         },
                         modifier = Modifier
@@ -424,6 +468,7 @@ fun DashboardScreen(
             goals = state.activeGoals,
             generalSavingsBalance = state.generalSavingsBalanceGel,
             selectedGoalId = state.selectedActiveGoal?.id,
+            initialAmount = prefilledAmount,
             onDismiss = { isMoneySheetOpen = false },
             onSubmit = { goalId, amount, note ->
                 if (isDepositAction) {
@@ -431,6 +476,18 @@ fun DashboardScreen(
                 } else {
                     viewModel.withdrawMoney(goalId, amount, note)
                 }
+            }
+        )
+    }
+
+    // Transfer Funds Bottom Sheet (Smart Savings Allocation)
+    if (isTransferSheetOpen) {
+        TransferFundsBottomSheet(
+            goals = state.activeGoals,
+            generalSavingsBalance = state.generalSavingsBalanceGel,
+            onDismiss = { isTransferSheetOpen = false },
+            onTransfer = { fromId, toId, amt, note ->
+                viewModel.transferFunds(fromId, toId, amt, note)
             }
         )
     }

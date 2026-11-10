@@ -133,6 +133,14 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    val preferencesFlow = userPreferencesRepository.userPreferencesFlow
+
+    fun transferFunds(fromGoalId: String?, toGoalId: String?, amount: BigDecimal, note: String?) {
+        viewModelScope.launch {
+            transactionRepository.transferFunds(fromGoalId, toGoalId, amount, note)
+        }
+    }
+
     fun selectActiveGoal(goalId: String) {
         viewModelScope.launch {
             userPreferencesRepository.setSelectedActiveGoalId(goalId)

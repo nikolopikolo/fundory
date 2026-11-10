@@ -78,6 +78,20 @@ class SettingsViewModel @Inject constructor(
         initialValue = SettingsUiState()
     )
 
+    fun updateCarrierRates(boxetteAir: Double, boxetteGround: Double, inexAir: Double, inexSea: Double) {
+        viewModelScope.launch {
+            preferencesRepository.setCarrierRates(boxetteAir, boxetteGround, inexAir, inexSea)
+            _feedbackMessage.value = "Carrier rates saved successfully."
+        }
+    }
+
+    fun updateQuickAddAmounts(amounts: List<Int>) {
+        viewModelScope.launch {
+            preferencesRepository.setQuickAddAmounts(amounts)
+            _feedbackMessage.value = "Quick Add presets updated."
+        }
+    }
+
     fun toggleDarkMode(enabled: Boolean) {
         viewModelScope.launch { preferencesRepository.setDarkMode(enabled) }
     }

@@ -21,12 +21,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -35,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -80,12 +84,20 @@ fun AddEditProductScreen(
     var selectedCurrency by remember { mutableStateOf("USD") }
     var quantity by remember { mutableIntStateOf(1) }
     var productUrl by remember { mutableStateOf("") }
+    var marketplace by remember { mutableStateOf("") }
     var shippingCostText by remember { mutableStateOf("0.00") }
     var shippingCurrency by remember { mutableStateOf("USD") }
     var taxesAndFeesText by remember { mutableStateOf("0.00") }
     var taxesCurrency by remember { mutableStateOf("USD") }
     var isManualOverride by remember { mutableStateOf(false) }
     var manualOverrideText by remember { mutableStateOf("") }
+    var purchaseStatus by remember { mutableStateOf(com.fundory.app.domain.model.PurchaseStatus.NOT_PURCHASED) }
+    var shippingCarrier by remember { mutableStateOf("") }
+    var trackingNumber by remember { mutableStateOf("") }
+    var trackingNotes by remember { mutableStateOf("") }
+    var alternativeGroupId by remember { mutableStateOf("") }
+    var isSelectedAlternative by remember { mutableStateOf(true) }
+    var isStatusMenuOpen by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoaded by remember { mutableStateOf(false) }
 
@@ -101,10 +113,17 @@ fun AddEditProductScreen(
                 selectedCurrency = prod.currency
                 quantity = prod.quantity
                 productUrl = prod.productUrl ?: ""
+                marketplace = prod.marketplace ?: ""
                 shippingCostText = prod.shippingCost.toPlainString()
                 shippingCurrency = prod.shippingCurrency
                 taxesAndFeesText = prod.taxesAndFees.toPlainString()
                 taxesCurrency = prod.taxesCurrency
+                purchaseStatus = prod.purchaseStatus
+                shippingCarrier = prod.shippingCarrier ?: ""
+                trackingNumber = prod.trackingNumber ?: ""
+                trackingNotes = prod.trackingNotes ?: ""
+                alternativeGroupId = prod.alternativeGroupId ?: ""
+                isSelectedAlternative = prod.isSelectedAlternative
                 if (prod.manualOverrideGel != null) {
                     isManualOverride = true
                     manualOverrideText = prod.manualOverrideGel.toPlainString()
@@ -368,6 +387,120 @@ fun AddEditProductScreen(
                 )
             }
 
+            // ORDER TRACKING SECTION
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Order & Delivery Tracking",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Purchase Status Dropdown
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = purchaseStatus.displayName,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Purchase Status") },
+                    trailingIcon = {
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.clickable { isStatusMenuOpen = true })
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isStatusMenuOpen = true },
+                    shape = RoundedCornerShape(12.dp)
+                )
+                DropdownMenu(
+                    expanded = isStatusMenuOpen,
+                    onDismissRequest = { isStatusMenuOpen = false }
+                ) {
+                    com.fundory.app.domain.model.PurchaseStatus.entries.forEach { status ->
+                        DropdownMenuItem(
+                            text = { Text(status.displayName) },
+                            onClick = {
+                                purchaseStatus = status
+                                isStatusMenuOpen = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            if (purchaseStatus != com.fundory.app.domain.model.PurchaseStatus.NOT_PURCHASED) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = shippingCarrier,
+                        onValueChange = { shippingCarrier = it },
+                        label = { Text("Carrier (e.g. Boxette, Inex)") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = trackingNumber,
+                        onValueChange = { trackingNumber = it },
+                        label = { Text("Tracking #") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
+                OutlinedTextField(
+                    value = trackingNotes,
+                    onValueChange = { trackingNotes = it },
+                    label = { Text("Delivery Notes") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+
+            // ALTERNATIVE PRODUCT COMPARISON SECTION
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Product Alternatives",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            OutlinedTextField(
+                value = alternativeGroupId,
+                onValueChange = { alternativeGroupId = it },
+                label = { Text("Alternative Group ID (e.g. 'CPU_Choice')") },
+                placeholder = { Text("Leave empty if not an alternative") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            if (alternativeGroupId.isNotBlank()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Set as active alternative",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Only the active choice contributes to goal cost",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = isSelectedAlternative,
+                        onCheckedChange = { isSelectedAlternative = it }
+                    )
+                }
+            }
+
             if (errorMessage != null) {
                 Text(
                     text = errorMessage!!,
@@ -404,11 +537,18 @@ fun AddEditProductScreen(
                         currency = selectedCurrency.uppercase(),
                         quantity = quantity,
                         productUrl = productUrl.trim().ifBlank { null },
+                        marketplace = marketplace.trim().ifBlank { null },
                         shippingCost = shipCost,
                         shippingCurrency = shippingCurrency.uppercase(),
                         taxesAndFees = taxCost,
                         taxesCurrency = taxesCurrency.uppercase(),
-                        manualOverrideGel = overrideGel
+                        manualOverrideGel = overrideGel,
+                        purchaseStatus = purchaseStatus,
+                        shippingCarrier = shippingCarrier.trim().ifBlank { null },
+                        trackingNumber = trackingNumber.trim().ifBlank { null },
+                        trackingNotes = trackingNotes.trim().ifBlank { null },
+                        alternativeGroupId = alternativeGroupId.trim().ifBlank { null },
+                        isSelectedAlternative = isSelectedAlternative
                     )
 
                     viewModel.saveProduct(product)

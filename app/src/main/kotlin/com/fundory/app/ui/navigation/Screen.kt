@@ -31,6 +31,8 @@ sealed class Screen(val route: String) {
             if (goalId != null) "transactions?goalId=$goalId" else "transactions"
     }
 
+    data object Wishlist : Screen("wishlist")
+
     data object Onboarding : Screen("onboarding")
 }
 

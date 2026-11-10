@@ -77,8 +77,10 @@ fun SpendingBreakdownDonutChart(
     }
 
     // Compute slice percentages
-    val totalGel = products.fold(BigDecimal.ZERO) { acc, p ->
-        acc.add(p.calculateTotalGel(ratesToGel))
+    val totalGel = remember(products, ratesToGel) {
+        products.fold(BigDecimal.ZERO) { acc, p ->
+            acc.add(p.calculateTotalGel(ratesToGel))
+        }
     }
 
     val slices = remember(products, ratesToGel, totalGel) {
