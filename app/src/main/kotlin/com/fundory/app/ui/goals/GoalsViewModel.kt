@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fundory.app.data.repository.CurrencyRepository
 import com.fundory.app.data.repository.GoalRepository
+import com.fundory.app.data.repository.ParcelRepository
 import com.fundory.app.data.repository.ProductRepository
 import com.fundory.app.data.repository.TransactionRepository
 import com.fundory.app.domain.engine.ImportCostCalculator
@@ -13,6 +14,7 @@ import com.fundory.app.domain.model.GoalProjectionResult
 import com.fundory.app.domain.model.GoalStatus
 import com.fundory.app.domain.model.ImportCalculationConfig
 import com.fundory.app.domain.model.ImportCalculationResult
+import com.fundory.app.domain.model.Parcel
 import com.fundory.app.domain.model.Product
 import com.fundory.app.domain.model.ProjectionScenario
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
@@ -44,6 +47,7 @@ data class GoalDetailUiState(
 class GoalsViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val productRepository: ProductRepository,
+    private val parcelRepository: ParcelRepository,
     private val transactionRepository: TransactionRepository,
     private val currencyRepository: CurrencyRepository,
     private val forecastEngine: SavingsForecastEngine,
@@ -211,6 +215,49 @@ class GoalsViewModel @Inject constructor(
     fun selectAlternative(groupId: String, selectedProductId: String) {
         viewModelScope.launch {
             productRepository.selectAlternative(groupId, selectedProductId)
+        }
+    }
+
+    val allGoalsFlow = goalRepository.allGoalsWithProductsFlow
+
+    fun applyCalculationToGoal(
+        goalId: String,
+        parcelName: String,
+        carrier: String,
+        method: String,
+        weightKg: Double,
+        shippingCostGel: BigDecimal,
+        vatGel: BigDecimal,
+        customsFeeGel: BigDecimal,
+        otherFeesGel: BigDecimal,
+        productSubtotalGel: BigDecimal,
+        trackingNumber: String? = null,
+        onComplete: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val parcel = Parcel(
+                id = UUID.randomUUID().toString(),
+                goalId = goalId,
+                name = parcelName,
+                carrier = carrier,
+                method = method,
+                weightKg = weightKg,
+                shippingCostGel = shippingCostGel,
+                vatGel = vatGel,
+                customsFeeGel = customsFeeGel,
+                otherFeesGel = otherFeesGel,
+                productSubtotalGel = productSubtotalGel,
+                trackingNumber = trackingNumber,
+                createdAtEpochMillis = System.currentTimeMillis()
+            )
+            parcelRepository.saveParcel(parcel)
+            onComplete()
+        }
+    }
+
+    fun deleteParcel(parcelId: String) {
+        viewModelScope.launch {
+            parcelRepository.deleteParcel(parcelId)
         }
     }
 

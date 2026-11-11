@@ -68,7 +68,9 @@ class FundoryWidgetProvider : AppWidgetProvider() {
             if (firstGoal != null) {
                 goalName = firstGoal.name
                 savedGel = firstGoal.savedAmountGel
-                targetGel = firstGoal.targetAmountGel
+                val parcels = db.parcelDao().getParcelsByGoal(firstGoal.id)
+                val totalAdditional = parcels.fold(BigDecimal.ZERO) { acc, p -> acc.add(p.toDomain().totalCostGel) }
+                targetGel = firstGoal.targetAmountGel.add(totalAdditional)
                 progressPercent = if (targetGel > BigDecimal.ZERO) {
                     savedGel.multiply(BigDecimal(100)).divide(targetGel, 0, RoundingMode.HALF_UP).toInt().coerceIn(0, 100)
                 } else 0
@@ -93,7 +95,9 @@ class FundoryWidgetProvider : AppWidgetProvider() {
                 views.setProgressBar(R.id.widget_progress_bar, 100, progressPercent, false)
 
                 val launchIntent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    action = Intent.ACTION_MAIN
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
                 }
                 val pendingIntent = PendingIntent.getActivity(
                     context,

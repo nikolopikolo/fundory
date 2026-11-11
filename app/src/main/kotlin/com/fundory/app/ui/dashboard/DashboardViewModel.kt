@@ -64,7 +64,7 @@ class DashboardViewModel @Inject constructor(
     ) { activeGoals, generalSavings, prefs, rates, syncState ->
         val goalsSaved = activeGoals.fold(BigDecimal.ZERO) { acc, g -> acc.add(g.savedAmountGel) }
         val totalSaved = generalSavings.add(goalsSaved)
-        val totalCost = activeGoals.fold(BigDecimal.ZERO) { acc, g -> acc.add(g.targetAmountGel) }
+        val totalCost = activeGoals.fold(BigDecimal.ZERO) { acc, g -> acc.add(g.totalRequiredFundingGel) }
         val totalRemaining = if (totalCost > totalSaved) totalCost.subtract(totalSaved) else BigDecimal.ZERO
 
         val overallPercentage = if (totalCost > BigDecimal.ZERO) {

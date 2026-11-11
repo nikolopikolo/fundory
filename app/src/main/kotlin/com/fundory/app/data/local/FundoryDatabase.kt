@@ -30,7 +30,7 @@ import com.fundory.app.data.local.entity.TransactionEntity
         PriceHistoryEntity::class,
         ParcelEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -177,6 +177,15 @@ abstract class FundoryDatabase : RoomDatabase() {
                     """.trimIndent()
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_parcels_goalId ON parcels(goalId)")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE parcels ADD COLUMN vatGel TEXT NOT NULL DEFAULT '0.00'")
+                db.execSQL("ALTER TABLE parcels ADD COLUMN customsFeeGel TEXT NOT NULL DEFAULT '0.00'")
+                db.execSQL("ALTER TABLE parcels ADD COLUMN otherFeesGel TEXT NOT NULL DEFAULT '0.00'")
+                db.execSQL("ALTER TABLE parcels ADD COLUMN productSubtotalGel TEXT NOT NULL DEFAULT '0.00'")
             }
         }
     }

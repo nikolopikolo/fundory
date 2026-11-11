@@ -2,6 +2,7 @@ package com.fundory.app
 
 import com.fundory.app.domain.model.Goal
 import com.fundory.app.domain.model.GoalStatus
+import com.fundory.app.domain.model.Parcel
 import com.fundory.app.domain.model.Product
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -106,6 +107,74 @@ class GoalTotalCalculationTest {
         assertEquals(BigDecimal("0.00"), goal.remainingAmountGel)
         assertEquals(0f, goal.progressPercentage, 0.01f)
         assertFalse(goal.isCompleted)
+    }
+
+    @Test
+    fun testGoalWithAppliedParcelExpenses() {
+        val parcel = Parcel(
+            id = "par1",
+            goalId = "g4",
+            name = "International Shipping",
+            carrier = "Boxette",
+            method = "Air",
+            weightKg = 1.0,
+            shippingCostGel = BigDecimal("12.00"),
+            vatGel = BigDecimal("0.00"),
+            customsFeeGel = BigDecimal("0.00"),
+            otherFeesGel = BigDecimal("3.00")
+        )
+
+        val goal = Goal(
+            id = "g4",
+            name = "Phone Import",
+            targetAmountGel = BigDecimal("262.25"),
+            savedAmountGel = BigDecimal("100.00"),
+            parcels = listOf(parcel)
+        )
+
+        assertEquals(BigDecimal("15.00"), goal.totalAdditionalCostsGel)
+        assertEquals(BigDecimal("277.25"), goal.totalRequiredFundingGel)
+        assertEquals(BigDecimal("177.25"), goal.remainingAmountGel)
+        assertEquals(BigDecimal("100.00"), goal.savedAmountGel)
+        assertFalse(goal.isCompleted)
+    }
+
+    @Test
+    fun testGoalWithMultipleParcels() {
+        val parcel1 = Parcel(
+            id = "par_mb",
+            goalId = "g5",
+            name = "Motherboard",
+            carrier = "Boxette",
+            method = "Ground",
+            weightKg = 1.5,
+            shippingCostGel = BigDecimal("20.00")
+        )
+
+        val parcel2 = Parcel(
+            id = "par_cpu",
+            goalId = "g5",
+            name = "CPU & RAM",
+            carrier = "Inex",
+            method = "Air",
+            weightKg = 0.8,
+            shippingCostGel = BigDecimal("35.00"),
+            vatGel = BigDecimal("18.00"),
+            customsFeeGel = BigDecimal("20.00")
+        )
+
+        val goal = Goal(
+            id = "g5",
+            name = "PC Build",
+            targetAmountGel = BigDecimal("500.00"),
+            savedAmountGel = BigDecimal("300.00"),
+            parcels = listOf(parcel1, parcel2)
+        )
+
+        // Additional costs: 20 + (35 + 18 + 20) = 93.00 GEL
+        assertEquals(BigDecimal("93.00"), goal.totalAdditionalCostsGel)
+        assertEquals(BigDecimal("593.00"), goal.totalRequiredFundingGel)
+        assertEquals(BigDecimal("293.00"), goal.remainingAmountGel)
     }
 }
 

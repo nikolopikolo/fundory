@@ -3,10 +3,12 @@ package com.fundory.app.data.repository
 import com.fundory.app.data.local.FundoryDatabase
 import com.fundory.app.data.local.dao.GoalDao
 import com.fundory.app.data.local.dao.GoalSnapshotDao
+import com.fundory.app.data.local.dao.ParcelDao
 import com.fundory.app.data.local.dao.ProductDao
 import com.fundory.app.data.local.dao.TransactionDao
 import com.fundory.app.data.local.entity.GoalEntity
 import com.fundory.app.data.local.entity.GoalSnapshotEntity
+import com.fundory.app.data.local.entity.ParcelEntity
 import com.fundory.app.data.local.entity.ProductEntity
 import com.fundory.app.domain.model.Goal
 import com.fundory.app.domain.model.GoalStatus
@@ -23,6 +25,7 @@ class GoalRepository @Inject constructor(
     private val database: FundoryDatabase,
     private val goalDao: GoalDao,
     private val productDao: ProductDao,
+    private val parcelDao: ParcelDao,
     private val transactionDao: TransactionDao,
     private val goalSnapshotDao: GoalSnapshotDao,
     private val currencyRepository: CurrencyRepository
@@ -30,37 +33,48 @@ class GoalRepository @Inject constructor(
 
     val allGoalsWithProductsFlow: Flow<List<Goal>> = combine(
         goalDao.getAllGoalsFlow(),
-        productDao.getAllProductsFlow()
-    ) { goals, products ->
+        productDao.getAllProductsFlow(),
+        parcelDao.getAllParcelsFlow()
+    ) { goals, products, parcels ->
         val productMap = products.groupBy { it.goalId }
+        val parcelMap = parcels.groupBy { it.goalId }
         goals.map { goalEntity ->
             val goalProducts = productMap[goalEntity.id]?.map { it.toDomain() } ?: emptyList()
-            goalEntity.toDomain().copy(products = goalProducts)
+            val goalParcels = parcelMap[goalEntity.id]?.map { it.toDomain() } ?: emptyList()
+            goalEntity.toDomain().copy(products = goalProducts, parcels = goalParcels)
         }
     }
 
     val activeGoalsWithProductsFlow: Flow<List<Goal>> = combine(
         goalDao.getActiveGoalsFlow(),
-        productDao.getAllProductsFlow()
-    ) { goals, products ->
+        productDao.getAllProductsFlow(),
+        parcelDao.getAllParcelsFlow()
+    ) { goals, products, parcels ->
         val productMap = products.groupBy { it.goalId }
+        val parcelMap = parcels.groupBy { it.goalId }
         goals.map { goalEntity ->
             val goalProducts = productMap[goalEntity.id]?.map { it.toDomain() } ?: emptyList()
-            goalEntity.toDomain().copy(products = goalProducts)
+            val goalParcels = parcelMap[goalEntity.id]?.map { it.toDomain() } ?: emptyList()
+            goalEntity.toDomain().copy(products = goalProducts, parcels = goalParcels)
         }
     }
 
     fun getGoalByIdFlow(id: String): Flow<Goal?> = combine(
         goalDao.getGoalByIdFlow(id),
-        productDao.getProductsByGoalFlow(id)
-    ) { goalEntity, products ->
-        goalEntity?.toDomain()?.copy(products = products.map { it.toDomain() })
+        productDao.getProductsByGoalFlow(id),
+        parcelDao.getParcelsByGoalFlow(id)
+    ) { goalEntity, products, parcels ->
+        goalEntity?.toDomain()?.copy(
+            products = products.map { it.toDomain() },
+            parcels = parcels.map { it.toDomain() }
+        )
     }
 
     suspend fun getGoalById(id: String): Goal? {
         val entity = goalDao.getGoalById(id) ?: return null
         val products = productDao.getProductsByGoal(id).map { it.toDomain() }
-        return entity.toDomain().copy(products = products)
+        val parcels = parcelDao.getParcelsByGoal(id).map { it.toDomain() }
+        return entity.toDomain().copy(products = products, parcels = parcels)
     }
 
     suspend fun saveGoal(goal: Goal) {
@@ -118,12 +132,27 @@ class GoalRepository @Inject constructor(
             productDao.insertProducts(duplicatedProducts)
         }
 
+        // Duplicate parcels
+        val duplicatedParcels = existingGoal.parcels.map { parcel ->
+            ParcelEntity.fromDomain(
+                parcel.copy(
+                    id = UUID.randomUUID().toString(),
+                    goalId = newGoalId,
+                    createdAtEpochMillis = now
+                )
+            )
+        }
+        if (duplicatedParcels.isNotEmpty()) {
+            parcelDao.insertParcels(duplicatedParcels)
+        }
+
         recordSnapshot(duplicatedGoal)
         return newGoalId
     }
 
     suspend fun deleteGoal(goalId: String) {
         // Cascade delete handled by SQLite foreign keys and explicit queries
+        parcelDao.deleteParcelsByGoal(goalId)
         productDao.deleteProductsByGoal(goalId)
         transactionDao.deleteTransactionsByGoal(goalId)
         goalSnapshotDao.deleteSnapshotsForGoal(goalId)

@@ -116,6 +116,10 @@ data class BackupParcel(
     val widthCm: Double? = null,
     val heightCm: Double? = null,
     val shippingCostGel: String,
+    val vatGel: String = "0.00",
+    val customsFeeGel: String = "0.00",
+    val otherFeesGel: String = "0.00",
+    val productSubtotalGel: String = "0.00",
     val isConfirmed: Boolean = false,
     val trackingNumber: String? = null,
     val createdAtEpochMillis: Long

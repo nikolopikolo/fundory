@@ -31,6 +31,10 @@ data class ParcelEntity(
     val widthCm: Double?,
     val heightCm: Double?,
     val shippingCostGel: BigDecimal,
+    val vatGel: BigDecimal = BigDecimal.ZERO,
+    val customsFeeGel: BigDecimal = BigDecimal.ZERO,
+    val otherFeesGel: BigDecimal = BigDecimal.ZERO,
+    val productSubtotalGel: BigDecimal = BigDecimal.ZERO,
     val isConfirmed: Boolean,
     val trackingNumber: String?,
     val createdAtEpochMillis: Long
@@ -46,6 +50,10 @@ data class ParcelEntity(
         widthCm = widthCm,
         heightCm = heightCm,
         shippingCostGel = shippingCostGel,
+        vatGel = vatGel,
+        customsFeeGel = customsFeeGel,
+        otherFeesGel = otherFeesGel,
+        productSubtotalGel = productSubtotalGel,
         isConfirmed = isConfirmed,
         trackingNumber = trackingNumber,
         createdAtEpochMillis = createdAtEpochMillis
@@ -63,6 +71,10 @@ data class ParcelEntity(
             widthCm = parcel.widthCm,
             heightCm = parcel.heightCm,
             shippingCostGel = parcel.shippingCostGel,
+            vatGel = parcel.vatGel,
+            customsFeeGel = parcel.customsFeeGel,
+            otherFeesGel = parcel.otherFeesGel,
+            productSubtotalGel = parcel.productSubtotalGel,
             isConfirmed = parcel.isConfirmed,
             trackingNumber = parcel.trackingNumber,
             createdAtEpochMillis = parcel.createdAtEpochMillis

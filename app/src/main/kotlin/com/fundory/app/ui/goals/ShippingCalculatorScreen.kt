@@ -2,6 +2,7 @@ package com.fundory.app.ui.goals
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,14 +13,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -31,13 +37,17 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,6 +93,14 @@ fun ShippingCalculatorScreen(
     var shippingCurrency by remember { mutableStateOf("USD") }
     var weightKgText by remember { mutableStateOf("") }
     var ratePerKgText by remember { mutableStateOf("") }
+    var carrierName by remember { mutableStateOf("Boxette") }
+    var carrierMethod by remember { mutableStateOf("Air") }
+
+    // Apply Costs to Goal state
+    var isApplySheetOpen by remember { mutableStateOf(false) }
+    var selectedTargetGoalId by remember(goalId) { mutableStateOf(goalId) }
+    var parcelNameText by remember { mutableStateOf("") }
+    val allGoals by viewModel.allGoalsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
 
     // Import VAT & Customs Toggle
     var applyImportVatAndCustoms by remember { mutableStateOf(true) }
@@ -138,6 +156,15 @@ fun ShippingCalculatorScreen(
     val result = remember(productsSubtotalGel, config, rates) {
         viewModel.calculateImportCost(productsSubtotalGel, config, rates)
     }
+
+    val additionalVatGel = if (result.isTaxableUnderCustoms) result.estimatedVatGel else BigDecimal.ZERO
+    val additionalCustomsGel = if (result.isTaxableUnderCustoms) result.customsDeclarationFeeGel else BigDecimal.ZERO
+    val additionalOtherFeesGel = result.transactionFeesGel.add(result.currencyConversionFeesGel)
+    val additionalCostsGel = result.shippingTotalGel
+        .add(additionalVatGel)
+        .add(additionalCustomsGel)
+        .add(additionalOtherFeesGel)
+        .setScale(2, RoundingMode.HALF_UP)
 
     val declaredValueGel = productsSubtotalGel.add(result.shippingTotalGel)
     val exceedsThreshold = declaredValueGel > config.customsThresholdGel
@@ -377,6 +404,9 @@ fun ShippingCalculatorScreen(
                                         .clickable {
                                             ratePerKgText = rateStr
                                             manualShippingCostText = ""
+                                            val parts = carrier.split(" ")
+                                            carrierName = parts.firstOrNull() ?: "Courier"
+                                            carrierMethod = parts.getOrNull(1) ?: "Air"
                                         },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = CardDefaults.cardColors(
@@ -603,7 +633,193 @@ fun ShippingCalculatorScreen(
                 }
             }
 
+            // Apply Costs to Goal Button
+            Button(
+                onClick = {
+                    if (parcelNameText.isBlank()) {
+                        parcelNameText = if (isLocalPurchase) "Local Delivery" else "$carrierName $carrierMethod Parcel"
+                    }
+                    if (selectedTargetGoalId == null) {
+                        selectedTargetGoalId = allGoals.firstOrNull()?.id
+                    }
+                    isApplySheetOpen = true
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = FundoryGreen)
+            ) {
+                Icon(imageVector = Icons.Default.AddShoppingCart, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Apply Costs to Goal",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+
+    // Apply Costs to Goal Bottom Sheet
+    if (isApplySheetOpen) {
+        val targetGoal = allGoals.firstOrNull { it.id == selectedTargetGoalId }
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+        ModalBottomSheet(
+            onDismissRequest = { isApplySheetOpen = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Apply Estimated Costs to Goal",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = "Associate this shipping & import cost estimate with a savings goal. The estimated expenses will be added to the goal's total funding requirement.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Select Destination Goal
+                Text("Select Destination Goal", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                if (allGoals.isEmpty()) {
+                    Text("No goals found. Create a savings goal first.", color = WarningAmber, style = MaterialTheme.typography.bodySmall)
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        allGoals.forEach { g ->
+                            val isSelected = g.id == selectedTargetGoalId
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedTargetGoalId = g.id },
+                                label = { Text(g.name) },
+                                leadingIcon = if (isSelected) {
+                                    { Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                } else null,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = FundoryGreen.copy(alpha = 0.2f),
+                                    selectedLabelColor = FundoryGreenLight
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // Parcel Name Input
+                OutlinedTextField(
+                    value = parcelNameText,
+                    onValueChange = { parcelNameText = it },
+                    label = { Text("Parcel / Estimate Name") },
+                    placeholder = { Text("e.g. CPU Air Parcel, Boxette Delivery") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                // Cost Breakdown Preview Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Additional Expenses Breakdown", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                        BreakdownLine("Shipping", Currencies.format(result.shippingTotalGel))
+                        if (additionalVatGel > BigDecimal.ZERO) {
+                            BreakdownLine("Import VAT (18%)", Currencies.format(additionalVatGel))
+                        }
+                        if (additionalCustomsGel > BigDecimal.ZERO) {
+                            BreakdownLine("Customs Declaration Fee", Currencies.format(additionalCustomsGel))
+                        }
+                        if (additionalOtherFeesGel > BigDecimal.ZERO) {
+                            BreakdownLine("Card & FX Fees", Currencies.format(additionalOtherFeesGel))
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        BreakdownLine("Total Additional Expenses", Currencies.format(additionalCostsGel))
+                    }
+                }
+
+                // Goal Impact Summary
+                if (targetGoal != null) {
+                    val currentBaseTarget = targetGoal.targetAmountGel
+                    val existingAdditional = targetGoal.totalAdditionalCostsGel
+                    val newTotalRequired = currentBaseTarget.add(existingAdditional).add(additionalCostsGel)
+                    val remaining = newTotalRequired.subtract(targetGoal.savedAmountGel).let { if (it < BigDecimal.ZERO) BigDecimal.ZERO else it }
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("Goal Target Impact: ${targetGoal.name}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                            BreakdownLine("Base Product Target", Currencies.format(currentBaseTarget))
+                            BreakdownLine("Applied Additional Costs", "+ ${Currencies.format(existingAdditional.add(additionalCostsGel))}")
+                            BreakdownLine("New Total Required", Currencies.format(newTotalRequired))
+                            BreakdownLine("Saved Amount (Unchanged)", Currencies.format(targetGoal.savedAmountGel))
+                            BreakdownLine("Remaining to Save", Currencies.format(remaining))
+                        }
+                    }
+                }
+
+                // Confirm Action Button
+                Button(
+                    onClick = {
+                        val destinationId = selectedTargetGoalId
+                        if (destinationId != null) {
+                            val pName = parcelNameText.ifBlank {
+                                if (isLocalPurchase) "Local Delivery" else "$carrierName $carrierMethod Parcel"
+                            }
+                            viewModel.applyCalculationToGoal(
+                                goalId = destinationId,
+                                parcelName = pName,
+                                carrier = if (isLocalPurchase) "Local" else carrierName,
+                                method = if (isLocalPurchase) "Ground" else carrierMethod,
+                                weightKg = parsedWeightKg,
+                                shippingCostGel = result.shippingTotalGel,
+                                vatGel = additionalVatGel,
+                                customsFeeGel = additionalCustomsGel,
+                                otherFeesGel = additionalOtherFeesGel,
+                                productSubtotalGel = productsSubtotalGel,
+                                onComplete = {
+                                    isApplySheetOpen = false
+                                    onNavigateBack()
+                                }
+                            )
+                        }
+                    },
+                    enabled = selectedTargetGoalId != null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = FundoryGreen)
+                ) {
+                    Text("Confirm & Apply to Goal", fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }

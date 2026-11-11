@@ -25,21 +25,40 @@ data class Goal(
     val status: GoalStatus = GoalStatus.ACTIVE,
     val createdDateEpochMillis: Long = System.currentTimeMillis(),
     val lastUpdatedEpochMillis: Long = System.currentTimeMillis(),
-    val products: List<Product> = emptyList()
+    val products: List<Product> = emptyList(),
+    val parcels: List<Parcel> = emptyList()
 ) {
+    val totalShippingGel: BigDecimal
+        get() = parcels.fold(BigDecimal.ZERO) { acc, p -> acc.add(p.shippingCostGel) }.setScale(2, RoundingMode.HALF_UP)
+
+    val totalVatGel: BigDecimal
+        get() = parcels.fold(BigDecimal.ZERO) { acc, p -> acc.add(p.vatGel) }.setScale(2, RoundingMode.HALF_UP)
+
+    val totalCustomsFeeGel: BigDecimal
+        get() = parcels.fold(BigDecimal.ZERO) { acc, p -> acc.add(p.customsFeeGel) }.setScale(2, RoundingMode.HALF_UP)
+
+    val totalOtherFeesGel: BigDecimal
+        get() = parcels.fold(BigDecimal.ZERO) { acc, p -> acc.add(p.otherFeesGel) }.setScale(2, RoundingMode.HALF_UP)
+
+    val totalAdditionalCostsGel: BigDecimal
+        get() = parcels.fold(BigDecimal.ZERO) { acc, p -> acc.add(p.totalCostGel) }.setScale(2, RoundingMode.HALF_UP)
+
+    val totalRequiredFundingGel: BigDecimal
+        get() = targetAmountGel.add(totalAdditionalCostsGel).setScale(2, RoundingMode.HALF_UP)
+
     val remainingAmountGel: BigDecimal
         get() {
-            val rem = targetAmountGel.subtract(savedAmountGel)
+            val rem = totalRequiredFundingGel.subtract(savedAmountGel)
             return (if (rem < BigDecimal.ZERO) BigDecimal.ZERO else rem).setScale(2, RoundingMode.HALF_UP)
         }
 
     val progressPercentage: Float
         get() {
-            if (targetAmountGel <= BigDecimal.ZERO) return 0f
-            val pct = savedAmountGel.divide(targetAmountGel, 4, RoundingMode.HALF_UP).toFloat() * 100f
+            if (totalRequiredFundingGel <= BigDecimal.ZERO) return 0f
+            val pct = savedAmountGel.divide(totalRequiredFundingGel, 4, RoundingMode.HALF_UP).toFloat() * 100f
             return pct.coerceIn(0f, 100f)
         }
 
     val isCompleted: Boolean
-        get() = savedAmountGel >= targetAmountGel && targetAmountGel > BigDecimal.ZERO
+        get() = savedAmountGel >= totalRequiredFundingGel && totalRequiredFundingGel > BigDecimal.ZERO
 }

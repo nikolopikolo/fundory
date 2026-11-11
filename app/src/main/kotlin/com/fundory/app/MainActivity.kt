@@ -105,6 +105,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleIntent(intent)
     }
 
@@ -114,6 +115,9 @@ class MainActivity : ComponentActivity() {
             val parsed = ShareLinkParser.parse(sharedText)
             if (parsed != null) {
                 pendingSharedInfo = parsed
+                // Clear the intent action and extra so configuration change or activity restart doesn't re-trigger
+                intent.action = null
+                intent.removeExtra(Intent.EXTRA_TEXT)
             }
         }
     }

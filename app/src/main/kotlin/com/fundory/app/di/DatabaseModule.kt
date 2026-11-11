@@ -31,7 +31,11 @@ object DatabaseModule {
             FundoryDatabase::class.java,
             FundoryDatabase.DATABASE_NAME
         )
-            .addMigrations(FundoryDatabase.MIGRATION_1_2, FundoryDatabase.MIGRATION_2_3)
+            .addMigrations(
+                FundoryDatabase.MIGRATION_1_2,
+                FundoryDatabase.MIGRATION_2_3,
+                FundoryDatabase.MIGRATION_3_4
+            )
             .fallbackToDestructiveMigration(false)
             .build()
     }

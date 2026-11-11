@@ -362,7 +362,7 @@ private fun GoalCard(
                         color = FundoryGreen
                     )
                     Text(
-                        text = "Target: ${Currencies.format(goal.targetAmountGel)}",
+                        text = "Target: ${Currencies.format(goal.totalRequiredFundingGel)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

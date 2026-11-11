@@ -18,6 +18,9 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
+            android:documentLaunchMode="never"
+            android:taskAffinity="com.fundory.app"
             android:theme="@style/Theme.Fundory.Starting"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

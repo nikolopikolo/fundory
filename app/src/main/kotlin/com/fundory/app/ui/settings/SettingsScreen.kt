@@ -1,6 +1,7 @@
 package com.fundory.app.ui.settings
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Science
@@ -40,6 +43,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -91,6 +95,7 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showClearConfirmation by remember { mutableStateOf(false) }
+    var showLicenseDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.feedbackMessage) {
         state.feedbackMessage?.let {
@@ -374,41 +379,143 @@ fun SettingsScreen(
                 }
             }
 
-            // About Fundory
+            // About Fundory & Developer Branding
+            val versionName = remember {
+                try {
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.2.0"
+                } catch (e: Exception) {
+                    "1.2.0"
+                }
+            }
+
             SettingsSection(title = "ABOUT") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
                             painter = painterResource(id = com.fundory.app.R.drawable.ic_fundory_logo),
                             contentDescription = "Fundory Emblem",
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(52.dp)
                                 .clip(RoundedCornerShape(12.dp))
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
                         Column {
                             Text(
-                                text = "Fundory Native Android",
+                                text = "Fundory",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Version 1.1.0 · Local-First Architecture",
+                                text = "Savings & Purchase Planner",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Text(
+                                text = "Version $versionName · Native Android",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = FundoryGreen
+                            )
                         }
                     }
+
                     Text(
-                        text = "Fundory operates completely offline with zero tracking, advertising, or third-party user accounts. All personal savings data remains exclusively on your device.",
+                        text = "Fundory operates completely offline with zero tracking, advertising, or third-party accounts. All personal savings data remains exclusively on your device.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    // Developer Information
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Developer",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "nikolopikolo",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/nikolopikolo"))
+                                context.startActivity(intent)
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text("GitHub", style = MaterialTheme.typography.labelMedium, color = FundoryGreen)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.OpenInNew, contentDescription = "Open GitHub", modifier = Modifier.size(14.dp), tint = FundoryGreen)
+                        }
+                    }
+
+                    // License & Copyright
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "License",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "MIT License · © 2026 nikolopikolo",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+
+                        TextButton(
+                            onClick = { showLicenseDialog = true }
+                        ) {
+                            Text("View License", style = MaterialTheme.typography.labelMedium, color = FundoryGreen)
+                        }
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(30.dp))
         }
+    }
+
+    // License Information Dialog
+    if (showLicenseDialog) {
+        AlertDialog(
+            onDismissRequest = { showLicenseDialog = false },
+            title = { Text("License Information", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Fundory — Savings & Purchase Planner", fontWeight = FontWeight.SemiBold)
+                    Text("Copyright © 2026 nikolopikolo")
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Fundory is licensed under the open-source MIT License. You are free to use, modify, distribute, and study the application in accordance with the terms of the MIT License.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLicenseDialog = false }) {
+                    Text("Close", color = FundoryGreen, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 
     // Confirmation dialog for Clear Data

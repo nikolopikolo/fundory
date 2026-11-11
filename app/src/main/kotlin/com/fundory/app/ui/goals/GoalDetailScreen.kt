@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -183,6 +185,133 @@ fun GoalDetailScreen(
                     )
                 }
 
+                // Action Shortcuts (Transfer & Shipping Calculator - full width, responsive, no vertical text wrapping)
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { isTransferSheetOpen = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp), tint = FundoryGreen)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "Transfer",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = FundoryGreen,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = { onNavigateToShippingCalculator(goalId) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.LocalShipping, contentDescription = null, modifier = Modifier.size(18.dp), tint = FundoryGreen)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "Calculator",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = FundoryGreen,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                    }
+                }
+
+                // Applied Shipping Parcels Section
+                if (goal.parcels.isNotEmpty()) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Applied Parcels (${goal.parcels.size})",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Additional: +${Currencies.format(goal.totalAdditionalCostsGel)}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = FundoryGreen,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            goal.parcels.forEach { parcel ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(parcel.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                            Text(
+                                                "${parcel.carrier} • ${parcel.method} • ${parcel.weightKg} kg",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            val details = buildList {
+                                                if (parcel.shippingCostGel > BigDecimal.ZERO) add("Ship: ${Currencies.format(parcel.shippingCostGel)}")
+                                                if (parcel.vatGel > BigDecimal.ZERO) add("VAT: ${Currencies.format(parcel.vatGel)}")
+                                                if (parcel.customsFeeGel > BigDecimal.ZERO) add("Customs: ${Currencies.format(parcel.customsFeeGel)}")
+                                                if (parcel.otherFeesGel > BigDecimal.ZERO) add("Fees: ${Currencies.format(parcel.otherFeesGel)}")
+                                            }.joinToString(" • ")
+                                            if (details.isNotBlank()) {
+                                                Text(details, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        }
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                Currencies.format(parcel.totalCostGel),
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = FundoryGreen
+                                            )
+                                            IconButton(
+                                                onClick = { viewModel.deleteParcel(parcel.id) },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Delete,
+                                                    contentDescription = "Remove Parcel",
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Products Section Header
                 item {
                     Row(
@@ -204,26 +333,6 @@ fun GoalDetailScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                onClick = { isTransferSheetOpen = true },
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(16.dp), tint = FundoryGreen)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Transfer", fontSize = 12.sp, color = FundoryGreen)
-                            }
-
-                            OutlinedButton(
-                                onClick = { onNavigateToShippingCalculator(goalId) },
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(Icons.Default.LocalShipping, contentDescription = null, modifier = Modifier.size(16.dp), tint = FundoryGreen)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Calculator", fontSize = 12.sp, color = FundoryGreen)
-                            }
                         }
                     }
                 }
@@ -423,17 +532,23 @@ private fun GoalProgressDetailCard(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "TARGET AMOUNT",
+                        text = if (goal.totalAdditionalCostsGel > BigDecimal.ZERO) "TOTAL REQUIRED" else "TARGET AMOUNT",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = Currencies.format(goal.targetAmountGel),
+                        text = Currencies.format(goal.totalRequiredFundingGel),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    if (!goal.targetCurrency.equals("GEL", ignoreCase = true)) {
+                    if (goal.totalAdditionalCostsGel > BigDecimal.ZERO) {
+                        Text(
+                            text = "Base: ${Currencies.format(goal.targetAmountGel)} + Costs: ${Currencies.format(goal.totalAdditionalCostsGel)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else if (!goal.targetCurrency.equals("GEL", ignoreCase = true)) {
                         Text(
                             text = "Original: ${Currencies.format(goal.originalTargetAmount, goal.targetCurrency)}",
                             style = MaterialTheme.typography.labelSmall,
@@ -467,6 +582,33 @@ private fun GoalProgressDetailCard(
                     fontWeight = FontWeight.Bold,
                     color = FundoryGreen
                 )
+            }
+
+            // Applied Costs Breakdown (Priority 5: Base Target, Shipping, Import VAT, Customs, Fees, Total, Saved, Remaining)
+            if (goal.totalAdditionalCostsGel > BigDecimal.ZERO) {
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Funding Requirement Breakdown", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    CostRow("Base Goal Target", Currencies.format(goal.targetAmountGel))
+                    if (goal.totalShippingGel > BigDecimal.ZERO) {
+                        CostRow("Shipping", "+ ${Currencies.format(goal.totalShippingGel)}")
+                    }
+                    if (goal.totalVatGel > BigDecimal.ZERO) {
+                        CostRow("Import VAT", "+ ${Currencies.format(goal.totalVatGel)}")
+                    }
+                    if (goal.totalCustomsFeeGel > BigDecimal.ZERO) {
+                        CostRow("Customs Fees", "+ ${Currencies.format(goal.totalCustomsFeeGel)}")
+                    }
+                    if (goal.totalOtherFeesGel > BigDecimal.ZERO) {
+                        CostRow("Other Fees", "+ ${Currencies.format(goal.totalOtherFeesGel)}")
+                    }
+                    CostRow("Total Funding Required", Currencies.format(goal.totalRequiredFundingGel), isBold = true)
+                    CostRow("Amount Saved", Currencies.format(goal.savedAmountGel), isGreen = true)
+                    CostRow("Remaining to Save", Currencies.format(goal.remainingAmountGel), isBold = true)
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -674,5 +816,32 @@ private fun GoalTransactionRow(transaction: Transaction) {
                 color = if (transaction.isPositive) FundoryGreen else NegativeRed
             )
         }
+    }
+}
+
+@Composable
+private fun CostRow(
+    label: String,
+    value: String,
+    isBold: Boolean = false,
+    isGreen: Boolean = false
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
+            color = if (isBold) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = if (isBold) FontWeight.Bold else FontWeight.Medium,
+            color = if (isGreen) FundoryGreen else if (isBold) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

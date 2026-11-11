@@ -113,9 +113,9 @@ class AnalyticsViewModel @Inject constructor(
         }
 
         val totalTarget = if (goalId != null) {
-            goals.find { it.id == goalId }?.targetAmountGel ?: BigDecimal.ZERO
+            goals.find { it.id == goalId }?.totalRequiredFundingGel ?: BigDecimal.ZERO
         } else {
-            goals.fold(BigDecimal.ZERO) { acc, g -> acc.add(g.targetAmountGel) }
+            goals.fold(BigDecimal.ZERO) { acc, g -> acc.add(g.totalRequiredFundingGel) }
         }
 
         AnalyticsUiState(
@@ -246,7 +246,7 @@ class AnalyticsViewModel @Inject constructor(
             if (goal != null) {
                 forecastEngine.calculateProjection(
                     goalId = goal.id,
-                    targetAmountGel = goal.targetAmountGel,
+                    targetAmountGel = goal.totalRequiredFundingGel,
                     currentSavedGel = goal.savedAmountGel,
                     monthlyPlanGel = goal.monthlyPlanGel,
                     scenario = scenario
@@ -256,7 +256,7 @@ class AnalyticsViewModel @Inject constructor(
             }
         } else {
             // All goals combined
-            val totalTarget = goals.fold(BigDecimal.ZERO) { acc, g -> acc.add(g.targetAmountGel) }
+            val totalTarget = goals.fold(BigDecimal.ZERO) { acc, g -> acc.add(g.totalRequiredFundingGel) }
             val totalSaved = goals.fold(BigDecimal.ZERO) { acc, g -> acc.add(g.savedAmountGel) }
             val totalMonthly = goals.fold(BigDecimal.ZERO) { acc, g -> acc.add(g.monthlyPlanGel) }
 

@@ -1,10 +1,12 @@
 package com.fundory.app.ui.navigation
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -36,6 +38,7 @@ fun FundoryNavHost(
     val showBottomBar = currentRoute in BottomNavItems.map { it.route }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showBottomBar) {
                 FundoryBottomNavBar(
@@ -56,7 +59,7 @@ fun FundoryNavHost(
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = modifier.padding(innerPadding)
+            modifier = modifier.padding(bottom = if (showBottomBar) innerPadding.calculateBottomPadding() else 0.dp)
         ) {
             composable(Screen.Onboarding.route) {
                 OnboardingScreen(

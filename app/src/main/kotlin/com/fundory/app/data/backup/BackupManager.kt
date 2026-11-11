@@ -140,6 +140,10 @@ class BackupManager @Inject constructor(
                     widthCm = par.widthCm,
                     heightCm = par.heightCm,
                     shippingCostGel = par.shippingCostGel.toPlainString(),
+                    vatGel = par.vatGel.toPlainString(),
+                    customsFeeGel = par.customsFeeGel.toPlainString(),
+                    otherFeesGel = par.otherFeesGel.toPlainString(),
+                    productSubtotalGel = par.productSubtotalGel.toPlainString(),
                     isConfirmed = par.isConfirmed,
                     trackingNumber = par.trackingNumber,
                     createdAtEpochMillis = par.createdAtEpochMillis
@@ -275,6 +279,10 @@ class BackupManager @Inject constructor(
                     widthCm = par.widthCm,
                     heightCm = par.heightCm,
                     shippingCostGel = BigDecimal(par.shippingCostGel),
+                    vatGel = BigDecimal(par.vatGel),
+                    customsFeeGel = BigDecimal(par.customsFeeGel),
+                    otherFeesGel = BigDecimal(par.otherFeesGel),
+                    productSubtotalGel = BigDecimal(par.productSubtotalGel),
                     isConfirmed = par.isConfirmed,
                     trackingNumber = par.trackingNumber,
                     createdAtEpochMillis = par.createdAtEpochMillis
